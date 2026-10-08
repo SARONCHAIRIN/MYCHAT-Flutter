@@ -26,30 +26,109 @@ class TokenStore {
   }
 }
 
+// final dioProvider = Provider<Dio>((ref) {
+//   final tokens = ref.read(tokenStoreProvider);
+//   final dio = Dio(
+//     BaseOptions(
+//       baseUrl: const String.fromEnvironment(
+//         'API_BASE_URL',
+//         defaultValue: 'https://mychat-umla.onrender.com',
+//       ),
+//       connectTimeout: const Duration(seconds: 20),
+//       receiveTimeout: const Duration(seconds: 25),
+//     ),
+//   );
+//   dio.interceptors.add(
+//     InterceptorsWrapper(
+//       onRequest: (options, handler) async {
+//         final token = await tokens.access;
+//         if (token != null && token.isNotEmpty)
+//           options.headers['Authorization'] = 'Bearer $token';
+//         handler.next(options);
+//       },
+//     ),
+//   );
+//   return dio;
+// });
+
 final dioProvider = Provider<Dio>((ref) {
   final tokens = ref.read(tokenStoreProvider);
+
   final dio = Dio(
     BaseOptions(
       baseUrl: const String.fromEnvironment(
         'API_BASE_URL',
         defaultValue: 'https://mychat-umla.onrender.com',
       ),
-      connectTimeout: const Duration(seconds: 20),
-      receiveTimeout: const Duration(seconds: 25),
-    ),
-  );
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await tokens.access;
-        if (token != null && token.isNotEmpty)
-          options.headers['Authorization'] = 'Bearer $token';
-        handler.next(options);
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
     ),
   );
+
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final path = options.uri.path;
+
+        final isPublicAuth =
+            path == '${ApiPaths.auth}/login' ||
+            path == '${ApiPaths.auth}/register';
+
+        if (isPublicAuth) {
+          options.headers.remove('Authorization');
+        } else {
+          final token = await tokens.access;
+
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        }
+
+        assert(() {
+          print('[API REQUEST] ${options.method} ${options.uri}');
+          return true;
+        }());
+
+        handler.next(options);
+      },
+
+      onResponse: (response, handler) {
+        assert(() {
+          print(
+            '[API SUCCESS] '
+            '${response.statusCode} '
+            '${response.requestOptions.uri.path}',
+          );
+          return true;
+        }());
+
+        handler.next(response);
+      },
+
+      onError: (error, handler) {
+        assert(() {
+          print(
+            '[API ERROR] '
+            'Status: ${error.response?.statusCode} '
+            'Path: ${error.requestOptions.uri.path} '
+            'Type: ${error.type} '
+            'Message: ${apiError(error)}',
+          );
+          return true;
+        }());
+
+        handler.next(error);
+      },
+    ),
+  );
+
   return dio;
 });
+
 dynamic unwrap(dynamic body) =>
     body is Map && body.containsKey('data') ? body['data'] : body;
 List<dynamic> listPayload(dynamic body) {

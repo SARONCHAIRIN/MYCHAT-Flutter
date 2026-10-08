@@ -1,3 +1,5 @@
+import '../settings/settings.dart';
+import '../notifications/notifications.dart';
 import '../messages/chat_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -5,6 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth.dart';
 import '../data/repositories.dart';
 import '../../core/network/api.dart';
+
+import '../../core/notifications/fcm_test.dart';
+
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -31,6 +36,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(register ? 'Create account' : 'MYCHAT Login')),
+
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -140,6 +146,22 @@ class HomeScreen extends ConsumerWidget {
       title: const Text('MYCHAT'),
       actions: [
         IconButton(
+          tooltip: 'Notifications',
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Settings',
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          ),
+        ),
+        IconButton(
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -150,6 +172,25 @@ class HomeScreen extends ConsumerWidget {
           onPressed: () => ref.read(authProvider.notifier).logout(),
           icon: const Icon(Icons.logout),
         ),
+        IconButton(
+  tooltip: 'Test FCM Token',
+  icon: const Icon(Icons.bug_report_outlined),
+  onPressed: () async {
+    final token = await testGetFcmToken();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          token != null
+              ? 'FCM Token generated successfully!'
+              : 'Failed to get FCM Token',
+        ),
+      ),
+    );
+  },
+),
       ],
     ),
     body: const DefaultTabController(

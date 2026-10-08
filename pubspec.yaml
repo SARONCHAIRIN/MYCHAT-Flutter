@@ -40,6 +40,8 @@ dependencies:
   go_router: ^14.8.1
   file_picker: ^8.1.7
   stomp_dart_client: ^2.1.0
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
 dev_dependencies:
   flutter_test:

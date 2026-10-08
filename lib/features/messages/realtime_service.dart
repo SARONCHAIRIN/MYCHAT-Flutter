@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
-import 'package:stomp_dart_client/stomp_config.dart';
-import 'package:stomp_dart_client/stomp_frame.dart';
 
 /// Configure these values ONLY after verifying the backend WebSocket/STOMP contract.
 /// No default destinations are invented.

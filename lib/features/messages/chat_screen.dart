@@ -226,7 +226,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ),
-
         IconButton(icon: const Icon(Icons.refresh), onPressed: () => load()),
       ],
     ),
