@@ -1,17 +1,10 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/network/api.dart';
-import 'package:dio/dio.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import '../notifications/device_registration.dart';
-import 'package:flutter/foundation.dart';
 import '../../core/notifications/notification_initializer.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-
-import '../../core/notifications/firebase_messaging_service.dart';
 import '../../core/notifications/notification_router.dart';
-
-import '../../core/notifications/notification_initializer.dart';
 
 final authProvider =
     AsyncNotifierProvider<AuthController, Map<String, dynamic>?>(
@@ -72,53 +65,6 @@ try {
 } catch (error) {
   debugPrint('Notification initialization failed: $error');
 }
-    // // 3. Initialize Firebase Messaging once
-    // try {
-    //   await FirebaseMessagingService.instance.initialize(
-    //     // Register device and handle future token refresh
-    //     onToken: (fcmToken) async {
-    //       final deviceResponse = await dio.post(
-    //         '/api/v1/devices',
-    //         options: Options(
-    //           headers: {
-    //             'Authorization': 'Bearer $access',
-    //           },
-    //         ),
-    //         data: {
-    //           'deviceName': 'Samsung SM A556E',
-    //           'platform': 'ANDROID',
-    //           'fcmToken': fcmToken,
-    //         },
-    //       );
-
-    //       debugPrint(
-    //         'FCM REGISTER STATUS: ${deviceResponse.statusCode}',
-    //       );
-    //     },
-
-    //     // Foreground notification
-    //     onMessage: (message) {
-    //       debugPrint(
-    //         'Foreground notification: ${message.data}',
-    //       );
-
-    //       // TODO: Refresh chat messages or show an in-app banner.
-    //     },
-
-    //     // Notification tap -> Chat conversation
-    //     onNotificationTap: (message) {
-    //       debugPrint(
-    //         'Notification tapped: ${message.data}',
-    //       );
-
-    //       NotificationRouter.openMessage(message);
-    //     },
-    //   );
-    // } catch (error) {
-    //   // FCM failure must not prevent successful login
-    //   debugPrint('Firebase initialization failed: $error');
-    // }
-
     // 4. Get current user profile
     return me();
   });
@@ -168,6 +114,8 @@ try {
     try {
       await dio.post('${ApiPaths.auth}/logout');
     } finally {
+      NotificationRouter.setAuthenticated(false);
+      await ref.read(notificationInitializerProvider).dispose();
       await tokens.clear();
       state = const AsyncData(null);
     }

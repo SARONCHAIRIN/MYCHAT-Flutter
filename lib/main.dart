@@ -8,6 +8,7 @@ import 'features/auth/auth.dart';
 import 'features/ui/screens.dart';
 import 'core/notifications/firebase_messaging_service.dart';
 import 'core/notifications/notification_router.dart';
+import 'core/notifications/notification_initializer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,13 +28,11 @@ class MyChatApp extends ConsumerWidget {
     final auth = ref.watch(authProvider);
 
     ref.listen(authProvider, (previous, next) {
-      next.whenData((user) {
-        if (user != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            NotificationRouter.openPendingMessage();
-          });
-        }
-      });
+      _syncNotificationAuth(ref, next);
+    });
+    // Also handle an already-resolved auth state on the first build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) _syncNotificationAuth(ref, auth);
     });
 
     return MaterialApp(
@@ -51,5 +50,22 @@ class MyChatApp extends ConsumerWidget {
         data: (user) => user == null ? const AuthScreen() : const HomeScreen(),
       ),
     );
+  }
+
+  void _syncNotificationAuth(
+    WidgetRef ref,
+    AsyncValue<Map<String, dynamic>?> auth,
+  ) {
+    if (!auth.hasValue) return;
+    final signedIn = auth.value != null;
+    NotificationRouter.setAuthenticated(signedIn);
+    if (signedIn) {
+      // Also initialize FCM when a persisted session is restored.
+      ref.read(notificationInitializerProvider).initialize().catchError(
+        (Object error) {
+          debugPrint('FCM initialization failed: $error');
+        },
+      );
+    }
   }
 }

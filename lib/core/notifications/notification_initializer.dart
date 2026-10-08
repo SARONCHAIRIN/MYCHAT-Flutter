@@ -1,3 +1,4 @@
+import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -7,70 +8,57 @@ import '../network/api.dart';
 import 'firebase_messaging_service.dart';
 import 'notification_router.dart';
 
-
-final notificationInitializerProvider =
-    Provider<NotificationInitializer>((ref) {
-  return NotificationInitializer(
-    dio: ref.read(dioProvider),
-  );
+final notificationInitializerProvider = Provider<NotificationInitializer>((ref) {
+  final initializer = NotificationInitializer(dio: ref.read(dioProvider));
+  ref.onDispose(() {
+    unawaited(initializer.dispose());
+  });
+  return initializer;
 });
 
 class NotificationInitializer {
   NotificationInitializer({required this.dio});
 
   final Dio dio;
+  Future<void>? _initialization;
 
-  Future<void> initialize() async {
+  /// Idempotent: login and session restoration can both call this.
+  Future<void> initialize() {
+    return _initialization ??= _initializeOnce().catchError((Object error) {
+      _initialization = null;
+      throw error;
+    });
+  }
+
+  Future<void> _initializeOnce() async {
     await FirebaseMessagingService.instance.initialize(
-      // 1. Register FCM token to MYCHAT Backend
       onToken: (token) async {
         try {
           final response = await dio.post(
             '/api/v1/devices',
             data: {
-              'deviceName': 'Samsung SM A556E',
+              // A generic name avoids falsely identifying other phones as Samsung.
+              'deviceName': 'MYCHAT Android device',
               'platform': 'ANDROID',
               'fcmToken': token,
             },
           );
-
-          debugPrint(
-            'FCM REGISTER STATUS: ${response.statusCode}',
-          );
-
-          debugPrint(
-            'FCM DEVICE REGISTERED SUCCESSFULLY',
-          );
+          debugPrint('FCM device registration: ${response.statusCode}');
         } on DioException catch (error) {
-          debugPrint(
-            'FCM REGISTER ERROR: ${error.response?.statusCode}',
-          );
-
-          debugPrint(
-            'FCM REGISTER RESPONSE: ${error.response?.data}',
-          );
-
+          debugPrint('FCM registration failed: ${error.response?.statusCode}');
           rethrow;
         }
       },
-
-      // 2. Receive message while app is open
       onMessage: (message) {
-        debugPrint(
-          'Foreground notification: ${message.data}',
-        );
-
-        // TODO: Refresh conversation/message query.
+        debugPrint('Foreground notification: ${message.data}');
+        // Message refresh / foreground presentation is separate work.
       },
-
-      // 3. Open chat when notification is tapped
-      onNotificationTap: (message) {
-        debugPrint(
-          'Notification tapped: ${message.data}',
-        );
-
-        NotificationRouter.openMessage(message);
-      },
+      onNotificationTap: NotificationRouter.openMessage,
     );
+  }
+
+  Future<void> dispose() async {
+    _initialization = null;
+    await FirebaseMessagingService.instance.dispose();
   }
 }
