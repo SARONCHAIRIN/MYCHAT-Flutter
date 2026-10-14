@@ -114,9 +114,16 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
 
 
 Future<void> logout() async {
+
+  final refreshToken = await tokens.refresh;
   try {
     final response = await dio.post(
       '${ApiPaths.auth}/logout',
+     data: {
+
+          'refreshToken': refreshToken,
+
+        },
     );
 
     debugPrint('Logout status: ${response.statusCode}');
