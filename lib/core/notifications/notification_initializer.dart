@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api.dart';
 import 'firebase_messaging_service.dart';
+import 'foreground_notification_service.dart';
 import 'notification_router.dart';
 
 final notificationInitializerProvider = Provider<NotificationInitializer>((ref) {
@@ -31,6 +32,7 @@ class NotificationInitializer {
   }
 
   Future<void> _initializeOnce() async {
+    await ForegroundNotificationService.instance.initialize();
     await FirebaseMessagingService.instance.initialize(
       onToken: (token) async {
         try {
@@ -51,7 +53,9 @@ class NotificationInitializer {
       },
       onMessage: (message) {
         debugPrint('Foreground notification: ${message.data}');
-        // Message refresh / foreground presentation is separate work.
+        ForegroundNotificationService.instance.show(message).catchError(
+          (Object error) => debugPrint('Foreground banner failed: $error'),
+        );
       },
       onNotificationTap: NotificationRouter.openMessage,
     );

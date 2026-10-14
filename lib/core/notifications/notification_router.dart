@@ -10,7 +10,8 @@ class NotificationRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  static RemoteMessage? _pendingMessage;
+  static Map<String, dynamic>? _pendingData;
+  static String? _pendingTapId;
   static bool _authenticated = false;
   static String? _lastTapKey;
   static DateTime? _lastTapTime;
@@ -18,7 +19,8 @@ class NotificationRouter {
   /// Clear navigation from a previous account when explicitly logging out.
   static void clearOnLogout() {
     _authenticated = false;
-    _pendingMessage = null;
+    _pendingData = null;
+    _pendingTapId = null;
     _lastTapKey = null;
     _lastTapTime = null;
   }
@@ -32,7 +34,10 @@ class NotificationRouter {
   }
 
   static void openMessage(RemoteMessage message) {
-    final data = message.data;
+    openData(message.data, tapId: message.messageId);
+  }
+
+  static void openData(Map<String, dynamic> data, {String? tapId}) {
     final conversationId = int.tryParse(
       data['conversationId']?.toString() ?? '',
     );
@@ -43,13 +48,14 @@ class NotificationRouter {
     }
 
     if (!_authenticated || navigatorKey.currentState == null) {
-      _pendingMessage = message;
+      _pendingData = Map<String, dynamic>.from(data);
+      _pendingTapId = tapId;
       debugPrint('Notification queued until authenticated home is ready');
       return;
     }
 
     final tapKey =
-        message.messageId ?? '$conversationId:${data['messageId']}';
+        tapId ?? '$conversationId:${data['messageId']}';
     final now = DateTime.now();
     if (_lastTapKey == tapKey &&
         _lastTapTime != null &&
@@ -60,7 +66,8 @@ class NotificationRouter {
 
     _lastTapKey = tapKey;
     _lastTapTime = now;
-    _pendingMessage = null;
+    _pendingData = null;
+    _pendingTapId = null;
     debugPrint('Opening ChatScreen: $conversationId');
     navigatorKey.currentState!.push(
       MaterialPageRoute<void>(
@@ -71,9 +78,11 @@ class NotificationRouter {
 
   static void openPendingMessage() {
     if (!_authenticated || navigatorKey.currentState == null) return;
-    final message = _pendingMessage;
-    if (message == null) return;
-    _pendingMessage = null;
-    openMessage(message);
+    final data = _pendingData;
+    if (data == null) return;
+    final tapId = _pendingTapId;
+    _pendingData = null;
+    _pendingTapId = null;
+    openData(data, tapId: tapId);
   }
 }

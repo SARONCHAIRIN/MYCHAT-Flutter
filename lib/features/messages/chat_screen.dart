@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
+  Timer? _refreshTimer;
+  bool _refreshInFlight = false;
   final input = TextEditingController();
   final scroll = ScrollController();
   List<MessageJson> messages = [];
@@ -23,10 +26,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     Future.microtask(load);
+    // REST fallback until the backend STOMP contract is verified.
+    // Poll only while this screen is visible; never overlap refreshes.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => refreshLatest());
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     input.dispose();
     scroll.dispose();
     super.dispose();
@@ -64,6 +71,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) setState(() => error = apiError(e));
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> refreshLatest() async {
+    if (!mounted || loading || _refreshInFlight) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    _refreshInFlight = true;
+    try {
+      final page = await ref.read(messageRepositoryProvider)
+          .history(widget.conversationId);
+      if (!mounted) return;
+      setState(() {
+        messages = mergeMessages(messages, page.messages);
+      });
+    } catch (_) {
+      // Keep cached messages on transient network/server failures.
+    } finally {
+      _refreshInFlight = false;
     }
   }
 

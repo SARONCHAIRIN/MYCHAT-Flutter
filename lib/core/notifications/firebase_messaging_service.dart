@@ -91,7 +91,7 @@ class FirebaseMessagingService {
     _openedSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen((message) {
       debugPrint(
-        'Notification tapped: ${message.data}',
+        'Notification tapped: ${message.messageId}',
       );
 
       onNotificationTap?.call(message);
@@ -102,7 +102,7 @@ class FirebaseMessagingService {
 
     if (initialMessage != null) {
       debugPrint(
-        'Initial notification: ${initialMessage.data}',
+        'Initial notification: ${initialMessage.messageId}',
       );
 
       onNotificationTap?.call(initialMessage);
