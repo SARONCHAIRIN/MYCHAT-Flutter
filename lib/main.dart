@@ -30,7 +30,8 @@ class MyChatApp extends ConsumerWidget {
     ref.listen(authProvider, (previous, next) {
       _syncNotificationAuth(ref, next);
     });
-    // Also handle an already-resolved auth state on the first build.
+    // Covers sessions already restored before the listener was registered.
+    // The initializer itself is idempotent, so repeated builds are safe.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) _syncNotificationAuth(ref, auth);
     });

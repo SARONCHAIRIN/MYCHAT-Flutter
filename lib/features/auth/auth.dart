@@ -30,7 +30,7 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
     return Map<String, dynamic>.from(unwrap(response.data) as Map);
   }
 
-Future<void> login(String username, String password) async {
+  Future<void> login(String username, String password) async {
   state = const AsyncLoading();
 
   state = await AsyncValue.guard(() async {
@@ -60,11 +60,11 @@ Future<void> login(String username, String password) async {
       (data['refreshToken'] ?? data['refresh_token'])?.toString(),
     );
 
-try {
-  await ref.read(notificationInitializerProvider).initialize();
-} catch (error) {
-  debugPrint('Notification initialization failed: $error');
-}
+    try {
+      await ref.read(notificationInitializerProvider).initialize();
+    } catch (error) {
+      debugPrint('Notification initialization failed: $error');
+    }
     // 4. Get current user profile
     return me();
   });
@@ -114,7 +114,7 @@ try {
     try {
       await dio.post('${ApiPaths.auth}/logout');
     } finally {
-      NotificationRouter.setAuthenticated(false);
+      NotificationRouter.clearOnLogout();
       await ref.read(notificationInitializerProvider).dispose();
       await tokens.clear();
       state = const AsyncData(null);

@@ -15,10 +15,20 @@ class NotificationRouter {
   static String? _lastTapKey;
   static DateTime? _lastTapTime;
 
+  /// Clear navigation from a previous account when explicitly logging out.
+  static void clearOnLogout() {
+    _authenticated = false;
+    _pendingMessage = null;
+    _lastTapKey = null;
+    _lastTapTime = null;
+  }
+
   static void setAuthenticated(bool value) {
     _authenticated = value;
     if (!value) return;
-    openPendingMessage();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      openPendingMessage();
+    });
   }
 
   static void openMessage(RemoteMessage message) {
