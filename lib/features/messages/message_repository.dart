@@ -132,7 +132,9 @@ List<MessageJson> mergeMessages(
   final byId = <String, MessageJson>{};
   for (final message in [...existing, ...incoming]) {
     final key = messageKey(message);
-    if (key.isNotEmpty) byId[key] = message;
+    if (key.isNotEmpty) {
+      byId[key] = message;
+    }
   }
   return byId.values.toList()..sort(
     (a, b) => (a['createdAt'] ?? a['created_at'] ?? '').toString().compareTo(

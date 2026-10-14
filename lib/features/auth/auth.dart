@@ -6,6 +6,8 @@ import '../../core/network/api.dart';
 import '../../core/notifications/notification_initializer.dart';
 import '../../core/notifications/notification_router.dart';
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 final authProvider =
     AsyncNotifierProvider<AuthController, Map<String, dynamic>?>(
       AuthController.new,
@@ -110,14 +112,45 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
     state = await AsyncValue.guard(me);
   }
 
-  Future<void> logout() async {
+
+Future<void> logout() async {
+  try {
+    final response = await dio.post(
+      '${ApiPaths.auth}/logout',
+    );
+
+    debugPrint('Logout status: ${response.statusCode}');
+  } on DioException catch (error) {
+    debugPrint(
+      'Logout API status: ${error.response?.statusCode}',
+    );
+
+    final data = error.response?.data;
+
+    if (data is Map) {
+      debugPrint('Logout error code: ${data['code']}');
+      debugPrint('Logout error message: ${data['message']}');
+    }
+  } catch (error) {
+    debugPrint('Logout error: ${error.runtimeType}');
+  } finally {
+    NotificationRouter.clearOnLogout();
+
     try {
-      await dio.post('${ApiPaths.auth}/logout');
-    } finally {
-      NotificationRouter.clearOnLogout();
       await ref.read(notificationInitializerProvider).dispose();
+    } catch (error) {
+      debugPrint(
+        'Notification cleanup failed: ${error.runtimeType}',
+      );
+    }
+
+    try {
       await tokens.clear();
+    } finally {
       state = const AsyncData(null);
     }
   }
+}
+
+
 }

@@ -16,8 +16,11 @@ class TokenStore {
   Future<String?> get refresh => secureStorage.read(key: 'refresh_token');
   Future<void> save(String access, String? refresh) async {
     await secureStorage.write(key: 'access_token', value: access);
-    if (refresh != null)
+    if (refresh != null) {
       await secureStorage.write(key: 'refresh_token', value: refresh);
+    } else {
+      await secureStorage.delete(key: 'refresh_token');
+    }
   }
 
   Future<void> clear() async {
@@ -78,9 +81,8 @@ final dioProvider = Provider<Dio>((ref) {
             path == '${ApiPaths.auth}/login' ||
             path == '${ApiPaths.auth}/register';
 
-        if (isPublicAuth) {
-          options.headers.remove('Authorization');
-        } else {
+        options.headers.remove('Authorization');
+        if (!isPublicAuth) {
           final token = await tokens.access;
 
           if (token != null && token.isNotEmpty) {
@@ -88,38 +90,16 @@ final dioProvider = Provider<Dio>((ref) {
           }
         }
 
-        assert(() {
-          print('[API REQUEST] ${options.method} ${options.uri}');
-          return true;
-        }());
 
         handler.next(options);
       },
 
       onResponse: (response, handler) {
-        assert(() {
-          print(
-            '[API SUCCESS] '
-            '${response.statusCode} '
-            '${response.requestOptions.uri.path}',
-          );
-          return true;
-        }());
 
         handler.next(response);
       },
 
       onError: (error, handler) {
-        assert(() {
-          print(
-            '[API ERROR] '
-            'Status: ${error.response?.statusCode} '
-            'Path: ${error.requestOptions.uri.path} '
-            'Type: ${error.type} '
-            'Message: ${apiError(error)}',
-          );
-          return true;
-        }());
 
         handler.next(error);
       },

@@ -12,7 +12,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
   Timer? _refreshTimer;
   bool _refreshInFlight = false;
   final input = TextEditingController();
@@ -25,18 +25,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(load);
     // REST fallback until the backend STOMP contract is verified.
     // Poll only while this screen is visible; never overlap refreshes.
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => refreshLatest());
+    _startRefreshTimer();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     input.dispose();
     scroll.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startRefreshTimer();
+      refreshLatest();
+    } else {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
+  }
+
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => refreshLatest(),
+    );
   }
 
   Future<void> load({bool older = false}) async {
@@ -76,6 +97,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> refreshLatest() async {
     if (!mounted || loading || _refreshInFlight) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
     _refreshInFlight = true;
