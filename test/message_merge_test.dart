@@ -5,8 +5,12 @@ void main() {
   group('mergeMessages', () {
     test('deduplicates by id and retains latest version', () {
       final result = mergeMessages(
-        [{'id': 1, 'content': 'old', 'createdAt': '2026-01-01T00:00:00Z'}],
-        [{'id': 1, 'content': 'edited', 'createdAt': '2026-01-01T00:00:00Z'}],
+        [
+          {'id': 1, 'content': 'old', 'createdAt': '2026-01-01T00:00:00Z'},
+        ],
+        [
+          {'id': 1, 'content': 'edited', 'createdAt': '2026-01-01T00:00:00Z'},
+        ],
       );
       expect(result, hasLength(1));
       expect(result.single['content'], 'edited');

@@ -12,7 +12,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObserver {
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
   Timer? _refreshTimer;
   bool _refreshInFlight = false;
   final input = TextEditingController();
@@ -97,12 +98,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   Future<void> refreshLatest() async {
     if (!mounted || loading || _refreshInFlight) return;
-    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed)
+      return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
     _refreshInFlight = true;
     try {
-      final page = await ref.read(messageRepositoryProvider)
+      final page = await ref
+          .read(messageRepositoryProvider)
           .history(widget.conversationId);
       if (!mounted) return;
       setState(() {
@@ -274,7 +277,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             ),
           ),
         ),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: () => load()),
+        IconButton(
+          tooltip: 'Refresh messages',
+          icon: const Icon(Icons.refresh),
+          onPressed: () => load(),
+        ),
       ],
     ),
     body: Column(
@@ -339,6 +346,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
             title: Text('Replying to $replyTo'),
             trailing: IconButton(
               icon: const Icon(Icons.close),
+              tooltip: 'Cancel reply',
               onPressed: () => setState(() => replyTo = null),
             ),
           ),
@@ -350,6 +358,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                   controller: input,
                   decoration: const InputDecoration(
                     hintText: 'Message',
+                    labelText: 'Write a message',
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
@@ -357,6 +366,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
               IconButton(
                 onPressed: sending ? null : send,
                 icon: const Icon(Icons.send),
+                tooltip: 'Send message',
               ),
             ],
           ),

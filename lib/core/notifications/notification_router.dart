@@ -42,8 +42,9 @@ class NotificationRouter {
       data['conversationId']?.toString() ?? '',
     );
     if (data['type']?.toString() != 'message:new' ||
-        conversationId == null) {
-      debugPrint('Ignoring non-chat notification: $data');
+        conversationId == null ||
+        conversationId <= 0) {
+      debugPrint('Ignoring non-chat notification');
       return;
     }
 
@@ -54,8 +55,7 @@ class NotificationRouter {
       return;
     }
 
-    final tapKey =
-        tapId ?? '$conversationId:${data['messageId']}';
+    final tapKey = tapId ?? '$conversationId:${data['messageId']}';
     final now = DateTime.now();
     if (_lastTapKey == tapKey &&
         _lastTapTime != null &&

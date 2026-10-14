@@ -9,7 +9,9 @@ import 'firebase_messaging_service.dart';
 import 'foreground_notification_service.dart';
 import 'notification_router.dart';
 
-final notificationInitializerProvider = Provider<NotificationInitializer>((ref) {
+final notificationInitializerProvider = Provider<NotificationInitializer>((
+  ref,
+) {
   final initializer = NotificationInitializer(dio: ref.read(dioProvider));
   ref.onDispose(() {
     unawaited(initializer.dispose());
@@ -53,9 +55,11 @@ class NotificationInitializer {
       },
       onMessage: (message) {
         debugPrint('Foreground notification: ${message.data}');
-        ForegroundNotificationService.instance.show(message).catchError(
-          (Object error) => debugPrint('Foreground banner failed: $error'),
-        );
+        ForegroundNotificationService.instance
+            .show(message)
+            .catchError(
+              (Object error) => debugPrint('Foreground banner failed: $error'),
+            );
       },
       onNotificationTap: NotificationRouter.openMessage,
     );

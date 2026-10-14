@@ -13,9 +13,7 @@ Future<String?> testGetFcmToken() async {
     );
 
     debugPrint("=====================================");
-    debugPrint(
-      'FCM Permission: ${settings.authorizationStatus}',
-    );
+    debugPrint('FCM Permission: ${settings.authorizationStatus}');
 
     // 2. Get FCM token
     final token = await messaging.getToken();

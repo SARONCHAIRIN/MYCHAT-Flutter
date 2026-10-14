@@ -10,7 +10,6 @@ import '../../core/network/api.dart';
 
 import '../../core/notifications/fcm_test.dart';
 
-
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
   @override
@@ -167,30 +166,32 @@ class HomeScreen extends ConsumerWidget {
             MaterialPageRoute(builder: (_) => const ProfileScreen()),
           ),
           icon: const Icon(Icons.person),
+          tooltip: 'Profile',
         ),
         IconButton(
           onPressed: () => ref.read(authProvider.notifier).logout(),
           icon: const Icon(Icons.logout),
+          tooltip: 'Log out',
         ),
         IconButton(
-  tooltip: 'Test FCM Token',
-  icon: const Icon(Icons.bug_report_outlined),
-  onPressed: () async {
-    final token = await testGetFcmToken();
+          tooltip: 'Test FCM Token',
+          icon: const Icon(Icons.bug_report_outlined),
+          onPressed: () async {
+            final token = await testGetFcmToken();
 
-    if (!context.mounted) return;
+            if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          token != null
-              ? 'FCM Token generated successfully!'
-              : 'Failed to get FCM Token',
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  token != null
+                      ? 'FCM Token generated successfully!'
+                      : 'Failed to get FCM Token',
+                ),
+              ),
+            );
+          },
         ),
-      ),
-    );
-  },
-),
       ],
     ),
     body: const DefaultTabController(

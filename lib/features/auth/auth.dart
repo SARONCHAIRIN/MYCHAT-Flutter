@@ -3,11 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api.dart';
+import 'auth_repository.dart';
 import '../../core/notifications/notification_initializer.dart';
 import '../../core/notifications/notification_router.dart';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
+import 'logout_service.dart';
+
 final authProvider =
     AsyncNotifierProvider<AuthController, Map<String, dynamic>?>(
       AuthController.new,
@@ -16,6 +17,7 @@ final authProvider =
 class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
   Dio get dio => ref.read(dioProvider);
   TokenStore get tokens => ref.read(tokenStoreProvider);
+  late final AuthRepository authRepository = AuthRepository(dio);
   @override
   Future<Map<String, dynamic>?> build() async {
     final token = await tokens.access;
@@ -28,51 +30,38 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
   }
 
   Future<Map<String, dynamic>> me() async {
-    final response = await dio.get('${ApiPaths.auth}/me');
-    return Map<String, dynamic>.from(unwrap(response.data) as Map);
+    return authRepository.me();
   }
 
   Future<void> login(String username, String password) async {
-  state = const AsyncLoading();
+    state = const AsyncLoading();
 
-  state = await AsyncValue.guard(() async {
-    // 1. Login API
-    final response = await dio.post(
-      '${ApiPaths.auth}/login',
-      data: {
-        'username': username,
-        'password': password,
-      },
-    );
+    state = await AsyncValue.guard(() async {
+      // 1. Login API
+      final data = await authRepository.login(username, password);
 
-    final data = Map<String, dynamic>.from(
-      unwrap(response.data) as Map,
-    );
+      final access = (data['accessToken'] ?? data['access_token'] ?? '')
+          .toString();
 
-    final access =
-        (data['accessToken'] ?? data['access_token'] ?? '').toString();
+      if (access.isEmpty) {
+        throw StateError('Login response missing access token');
+      }
 
-    if (access.isEmpty) {
-      throw StateError('Login response missing access token');
-    }
+      // 2. Save authentication tokens
+      await tokens.save(
+        access,
+        (data['refreshToken'] ?? data['refresh_token'])?.toString(),
+      );
 
-    // 2. Save authentication tokens
-    await tokens.save(
-      access,
-      (data['refreshToken'] ?? data['refresh_token'])?.toString(),
-    );
-
-    try {
-      await ref.read(notificationInitializerProvider).initialize();
-    } catch (error) {
-      debugPrint('Notification initialization failed: $error');
-    }
-    // 4. Get current user profile
-    return me();
-  });
-}
-
-
+      try {
+        await ref.read(notificationInitializerProvider).initialize();
+      } catch (error) {
+        debugPrint('Notification initialization failed: $error');
+      }
+      // 4. Get current user profile
+      return me();
+    });
+  }
 
   Future<void> register(
     String name,
@@ -80,26 +69,14 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
     String email,
     String password,
   ) async {
-    await dio.post(
-      '${ApiPaths.auth}/register',
-      data: {
-        'name': name,
-        'username': username,
-        'email': email,
-        'password': password,
-      },
-    );
+    await authRepository.register(name, username, email, password);
     await login(username, password);
   }
 
   Future<void> refresh() async {
     final refreshToken = await tokens.refresh;
     if (refreshToken == null) throw StateError('Missing refresh token');
-    final response = await dio.post(
-      '${ApiPaths.auth}/refresh',
-      data: {'refreshToken': refreshToken},
-    );
-    final data = Map<String, dynamic>.from(unwrap(response.data) as Map);
+    final data = await authRepository.refresh(refreshToken);
     final access = (data['accessToken'] ?? data['access_token'] ?? '')
         .toString();
     if (access.isEmpty)
@@ -112,52 +89,32 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
     state = await AsyncValue.guard(me);
   }
 
-
-Future<void> logout() async {
-
-  final refreshToken = await tokens.refresh;
-  try {
-    final response = await dio.post(
-      '${ApiPaths.auth}/logout',
-     data: {
-
-          'refreshToken': refreshToken,
-
-        },
-    );
-
-    debugPrint('Logout status: ${response.statusCode}');
-  } on DioException catch (error) {
-    debugPrint(
-      'Logout API status: ${error.response?.statusCode}',
-    );
-
-    final data = error.response?.data;
-
-    if (data is Map) {
-      debugPrint('Logout error code: ${data['code']}');
-      debugPrint('Logout error message: ${data['message']}');
-    }
-  } catch (error) {
-    debugPrint('Logout error: ${error.runtimeType}');
-  } finally {
-    NotificationRouter.clearOnLogout();
-
+  Future<void> logout() async {
+    // Attempt server-side revocation BEFORE deleting the refresh token.
+    // Local logout must still complete when the network/backend fails.
     try {
-      await ref.read(notificationInitializerProvider).dispose();
-    } catch (error) {
+      final refreshToken = await tokens.refresh;
+      await LogoutService(dio).revoke(refreshToken: refreshToken);
+    } on DioException catch (error) {
+      // Do not log credentials, request bodies, or server response payloads.
       debugPrint(
-        'Notification cleanup failed: ${error.runtimeType}',
+        'Logout revocation failed: HTTP ${error.response?.statusCode ?? "network"}',
       );
-    }
-
-    try {
-      await tokens.clear();
+    } catch (error) {
+      debugPrint('Logout revocation failed: ${error.runtimeType}');
     } finally {
-      state = const AsyncData(null);
+      NotificationRouter.clearOnLogout();
+      // Security-critical cleanup first, independent of notification failures.
+      try {
+        await tokens.clear();
+      } finally {
+        state = const AsyncData(null);
+        try {
+          await ref.read(notificationInitializerProvider).dispose();
+        } catch (error) {
+          debugPrint('Notification cleanup failed: ${error.runtimeType}');
+        }
+      }
     }
   }
-}
-
-
 }

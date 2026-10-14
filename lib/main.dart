@@ -62,11 +62,11 @@ class MyChatApp extends ConsumerWidget {
     NotificationRouter.setAuthenticated(signedIn);
     if (signedIn) {
       // Also initialize FCM when a persisted session is restored.
-      ref.read(notificationInitializerProvider).initialize().catchError(
-        (Object error) {
-          debugPrint('FCM initialization failed: $error');
-        },
-      );
+      ref.read(notificationInitializerProvider).initialize().catchError((
+        Object error,
+      ) {
+        debugPrint('FCM initialization failed: $error');
+      });
     }
   }
 }

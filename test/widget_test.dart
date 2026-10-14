@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('MYCHAT shell smoke test', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Text('MYCHAT'))));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Text('MYCHAT'))),
+    );
     expect(find.text('MYCHAT'), findsOneWidget);
   });
 }

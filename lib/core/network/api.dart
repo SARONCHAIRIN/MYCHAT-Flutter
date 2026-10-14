@@ -12,20 +12,23 @@ const secureStorage = FlutterSecureStorage();
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 
 class TokenStore {
-  Future<String?> get access => secureStorage.read(key: 'access_token');
-  Future<String?> get refresh => secureStorage.read(key: 'refresh_token');
+  final FlutterSecureStorage storage;
+  TokenStore({FlutterSecureStorage? storage})
+    : storage = storage ?? secureStorage;
+  Future<String?> get access => storage.read(key: 'access_token');
+  Future<String?> get refresh => storage.read(key: 'refresh_token');
   Future<void> save(String access, String? refresh) async {
-    await secureStorage.write(key: 'access_token', value: access);
+    await storage.write(key: 'access_token', value: access);
     if (refresh != null) {
-      await secureStorage.write(key: 'refresh_token', value: refresh);
+      await storage.write(key: 'refresh_token', value: refresh);
     } else {
-      await secureStorage.delete(key: 'refresh_token');
+      await storage.delete(key: 'refresh_token');
     }
   }
 
   Future<void> clear() async {
-    await secureStorage.delete(key: 'access_token');
-    await secureStorage.delete(key: 'refresh_token');
+    await storage.delete(key: 'access_token');
+    await storage.delete(key: 'refresh_token');
   }
 }
 
@@ -90,17 +93,14 @@ final dioProvider = Provider<Dio>((ref) {
           }
         }
 
-
         handler.next(options);
       },
 
       onResponse: (response, handler) {
-
         handler.next(response);
       },
 
       onError: (error, handler) {
-
         handler.next(error);
       },
     ),

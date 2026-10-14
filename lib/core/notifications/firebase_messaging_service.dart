@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -8,26 +7,18 @@ import 'package:flutter/foundation.dart';
 import '../../firebase_options.dart';
 
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-  RemoteMessage message,
-) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  debugPrint(
-    'Background FCM message received: ${message.messageId}',
-  );
+  debugPrint('Background FCM message received: ${message.messageId}');
 }
 
 class FirebaseMessagingService {
   FirebaseMessagingService._();
 
-  static final FirebaseMessagingService instance =
-      FirebaseMessagingService._();
+  static final FirebaseMessagingService instance = FirebaseMessagingService._();
 
-  final FirebaseMessaging _messaging =
-      FirebaseMessaging.instance;
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   StreamSubscription<String>? _tokenSubscription;
   StreamSubscription<RemoteMessage>? _messageSubscription;
@@ -44,9 +35,7 @@ class FirebaseMessagingService {
       sound: true,
     );
 
-    debugPrint(
-      'Notification permission: ${settings.authorizationStatus}',
-    );
+    debugPrint('Notification permission: ${settings.authorizationStatus}');
 
     // 1. Get and register FCM token
     final token = await _messaging.getToken();
@@ -63,24 +52,19 @@ class FirebaseMessagingService {
     // 2. Handle token refresh
     await _tokenSubscription?.cancel();
 
-    _tokenSubscription = _messaging.onTokenRefresh.listen(
-      (newToken) async {
-        try {
-          await onToken(newToken);
-        } catch (error) {
-          debugPrint('FCM token refresh failed: $error');
-        }
-      },
-    );
+    _tokenSubscription = _messaging.onTokenRefresh.listen((newToken) async {
+      try {
+        await onToken(newToken);
+      } catch (error) {
+        debugPrint('FCM token refresh failed: $error');
+      }
+    });
 
     // 3. Foreground messages
     await _messageSubscription?.cancel();
 
-    _messageSubscription =
-        FirebaseMessaging.onMessage.listen((message) {
-      debugPrint(
-        'Foreground FCM received: ${message.messageId}',
-      );
+    _messageSubscription = FirebaseMessaging.onMessage.listen((message) {
+      debugPrint('Foreground FCM received: ${message.messageId}');
 
       onMessage?.call(message);
     });
@@ -88,11 +72,10 @@ class FirebaseMessagingService {
     // 4. Notification tapped from background
     await _openedSubscription?.cancel();
 
-    _openedSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint(
-        'Notification tapped: ${message.messageId}',
-      );
+    _openedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
+      message,
+    ) {
+      debugPrint('Notification tapped: ${message.messageId}');
 
       onNotificationTap?.call(message);
     });
@@ -101,9 +84,7 @@ class FirebaseMessagingService {
     final initialMessage = await _messaging.getInitialMessage();
 
     if (initialMessage != null) {
-      debugPrint(
-        'Initial notification: ${initialMessage.messageId}',
-      );
+      debugPrint('Initial notification: ${initialMessage.messageId}');
 
       onNotificationTap?.call(initialMessage);
     }
