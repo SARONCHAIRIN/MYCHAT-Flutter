@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'firebase_options.dart';
+import 'core/theme/stitch_theme.dart';
 import 'features/auth/auth.dart';
 import 'features/ui/screens.dart';
 import 'core/notifications/firebase_messaging_service.dart';
@@ -40,13 +41,26 @@ class MyChatApp extends ConsumerWidget {
       navigatorKey: NotificationRouter.navigatorKey,
       title: 'MYCHAT',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xff172b44),
-        useMaterial3: true,
-      ),
+      theme: StitchTheme.light(),
       home: auth.when(
-        loading: () =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        loading: () => const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.forum_rounded, size: 80, color: StitchTheme.primaryContainer),
+                SizedBox(height: 20),
+                Text('MYCHAT', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+                SizedBox(height: 8),
+                Text('Fast. Secure. Real-time messaging.', style: TextStyle(color: StitchTheme.muted)),
+                SizedBox(height: 24),
+                CircularProgressIndicator(),
+                SizedBox(height: 12),
+                Text('Restoring your session...', style: TextStyle(fontSize: 12, color: StitchTheme.muted)),
+              ],
+            ),
+          ),
+        ),
         error: (e, _) => const AuthScreen(),
         data: (user) => user == null ? const AuthScreen() : const HomeScreen(),
       ),
