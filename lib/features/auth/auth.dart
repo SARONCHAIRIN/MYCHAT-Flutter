@@ -79,8 +79,9 @@ class AuthController extends AsyncNotifier<Map<String, dynamic>?> {
     final data = await authRepository.refresh(refreshToken);
     final access = (data['accessToken'] ?? data['access_token'] ?? '')
         .toString();
-    if (access.isEmpty)
+    if (access.isEmpty) {
       throw StateError('Refresh response missing access token');
+    }
     await tokens.save(
       access,
       (data['refreshToken'] ?? data['refresh_token'])?.toString() ??

@@ -32,31 +32,6 @@ class TokenStore {
   }
 }
 
-// final dioProvider = Provider<Dio>((ref) {
-//   final tokens = ref.read(tokenStoreProvider);
-//   final dio = Dio(
-//     BaseOptions(
-//       baseUrl: const String.fromEnvironment(
-//         'API_BASE_URL',
-//         defaultValue: 'https://mychat-umla.onrender.com',
-//       ),
-//       connectTimeout: const Duration(seconds: 20),
-//       receiveTimeout: const Duration(seconds: 25),
-//     ),
-//   );
-//   dio.interceptors.add(
-//     InterceptorsWrapper(
-//       onRequest: (options, handler) async {
-//         final token = await tokens.access;
-//         if (token != null && token.isNotEmpty)
-//           options.headers['Authorization'] = 'Bearer $token';
-//         handler.next(options);
-//       },
-//     ),
-//   );
-//   return dio;
-// });
-
 final dioProvider = Provider<Dio>((ref) {
   final tokens = ref.read(tokenStoreProvider);
 
@@ -96,13 +71,6 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
 
-      onResponse: (response, handler) {
-        handler.next(response);
-      },
-
-      onError: (error, handler) {
-        handler.next(error);
-      },
     ),
   );
 
@@ -122,12 +90,13 @@ List<dynamic> listPayload(dynamic body) {
 String apiError(Object error) {
   if (error is DioException) {
     final body = error.response?.data;
-    if (body is Map)
+    if (body is Map) {
       return (body['message'] ??
               body['error'] ??
               error.message ??
               'Request failed')
           .toString();
+    }
     return error.message ?? 'Network error';
   }
   return error.toString();

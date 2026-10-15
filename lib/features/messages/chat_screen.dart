@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api.dart';
 import 'message_repository.dart';
+import '../../core/theme/stitch_theme.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final Object conversationId;
@@ -265,7 +266,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Messages'),
+      title: const Row(children: [CircleAvatar(radius: 17, backgroundColor: Color(0xffe0e7ff), child: Icon(Icons.person_outline, color: StitchTheme.primary)), SizedBox(width: 10), Text('Chat Conversation', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17))]),
       actions: [
         IconButton(
           icon: const Icon(Icons.push_pin_outlined),
@@ -286,6 +287,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     ),
     body: Column(
       children: [
+        Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), color: const Color(0xffe5eeff), child: const Row(children: [Icon(Icons.lock_outline, size: 14, color: StitchTheme.primary), SizedBox(width: 7), Expanded(child: Text('Messages are synced with your MYCHAT account', style: TextStyle(fontSize: 12, color: StitchTheme.ink)))])),
         if (error != null)
           ListTile(
             title: Text(error!),
@@ -327,14 +329,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ),
-                        ListTile(
-                          title: Text(
-                            (m['content'] ?? '[Attachment]').toString(),
+                        Align(
+                          alignment: (m['isMine'] == true || m['mine'] == true || m['isOwn'] == true) ? Alignment.centerRight : Alignment.centerLeft,
+                          child: GestureDetector(
+                            onLongPress: () => showActions(m),
+                            child: Container(
+                              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .79),
+                              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: (m['isMine'] == true || m['mine'] == true || m['isOwn'] == true) ? StitchTheme.primary : const Color(0xfff1f5f9),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text((m['content'] ?? '[Attachment]').toString(), style: TextStyle(color: (m['isMine'] == true || m['mine'] == true || m['isOwn'] == true) ? Colors.white : const Color(0xff172b44))),
+                                const SizedBox(height: 5),
+                                Text('${m['senderName'] ?? m['senderId'] ?? 'User'}  $date', style: TextStyle(fontSize: 10, color: (m['isMine'] == true || m['mine'] == true || m['isOwn'] == true) ? Colors.white70 : Colors.blueGrey)),
+                              ]),
+                            ),
                           ),
-                          subtitle: Text(
-                            '${m['senderName'] ?? m['senderId'] ?? 'User'}  $date',
-                          ),
-                          onLongPress: () => showActions(m),
                         ),
                       ],
                     );
@@ -351,25 +364,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ),
           ),
         SafeArea(
-          child: Row(
+          child: Padding(padding: const EdgeInsets.all(10), child: Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: input,
                   decoration: const InputDecoration(
-                    hintText: 'Message',
-                    labelText: 'Write a message',
+                    hintText: 'Message...',
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
               ),
               IconButton(
                 onPressed: sending ? null : send,
-                icon: const Icon(Icons.send),
+                icon: const Icon(Icons.send_rounded, color: StitchTheme.primaryContainer),
                 tooltip: 'Send message',
               ),
             ],
-          ),
+          )),
         ),
       ],
     ),

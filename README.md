@@ -1,17 +1,35 @@
-# mychat
+# MYCHAT Flutter
 
-A new Flutter project.
+Flutter + Riverpod + Dio + secure storage + Firebase Messaging + STOMP client.
 
-## Getting Started
+## Setup
 
-This project is a starting point for a Flutter application.
+Use a compatible Flutter SDK (Dart >=3.11 per `pubspec.yaml`), Android SDK or Xcode, and a configured Firebase project.
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter doctor -v
+flutter pub get
+flutter run -d R5CXB2MNAWR --dart-define=API_BASE_URL=https://mychat-umla.onrender.com
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Use a staging backend for QA. Android setup: `android/`; iOS setup: `ios/`. Ensure Firebase platform files and notification permissions match the installed app IDs.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Tests
+
+```bash
+flutter test
+flutter test --coverage
+flutter test integration_test/auth_ui_smoke_test.dart -d R5CXB2MNAWR
+bash tool/quality_gate.sh
+```
+
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [API integration](docs/API_INTEGRATION.md)
+- [Testing](docs/TESTING.md)
+- [Release](docs/RELEASE.md)
+- [Final QA checklist](docs/PHASE_32_QA_CHECKLIST.md)
+- [Delivery report](FINAL_IMPLEMENTATION_REPORT.md)
+
+**Do not publish:** release identifiers, signing, controlled-backend E2E and physical-device QA are not yet verified.
