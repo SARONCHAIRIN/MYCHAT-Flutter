@@ -8,6 +8,11 @@ class ApiPaths {
   static const conversations = '/api/v1/conversations';
 }
 
+const apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://mychat-umla.onrender.com',
+);
+
 const secureStorage = FlutterSecureStorage();
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 
@@ -37,10 +42,7 @@ final dioProvider = Provider<Dio>((ref) {
 
   final dio = Dio(
     BaseOptions(
-      baseUrl: const String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue: 'https://mychat-umla.onrender.com',
-      ),
+      baseUrl: apiBaseUrl,
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       headers: {

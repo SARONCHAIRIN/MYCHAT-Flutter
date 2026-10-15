@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api.dart';
+import '../uploads/attachment.dart';
 
 typedef MessageJson = Map<String, dynamic>;
 final messageRepositoryProvider = Provider(
@@ -47,7 +48,7 @@ class MessageRepository {
       data: {
         'content': content,
         'type': 'TEXT',
-        if (replyTo != null) 'replyToMessageId': replyTo,
+        if (replyTo != null) 'replyToId': replyTo,
       },
     );
     return MessageJson.from(unwrap(res.data) as Map);
@@ -95,11 +96,16 @@ class MessageRepository {
     String path, {
     ProgressCallback? progress,
   }) async {
+    final fileName = path.split('/').last;
+    // The backend rejects uploads without a supported Content-Type.
+    final mime = mimeTypeForFile(fileName);
+    if (mime == null) throw StateError('Unsupported file type');
     final data = FormData.fromMap({
       'messageId': messageId.toString(),
       'file': await MultipartFile.fromFile(
         path,
-        filename: path.split('/').last,
+        filename: fileName,
+        contentType: DioMediaType.parse(mime),
       ),
     });
     final response = await dio.post(
@@ -108,6 +114,28 @@ class MessageRepository {
       onSendProgress: progress,
     );
     return MessageJson.from(unwrap(response.data) as Map);
+  }
+
+  /// Step 1 of the documented workflow: create the IMAGE/FILE message.
+  /// `content` must be non-blank, so the caption (or file name) is used.
+  Future<MessageJson> sendAttachmentMessage(
+    Object id,
+    String path, {
+    String caption = '',
+    Object? replyTo,
+  }) async {
+    final fileName = path.split('/').last;
+    final mime = mimeTypeForFile(fileName);
+    if (mime == null) throw StateError('Unsupported file type');
+    final res = await dio.post(
+      '${base(id)}/messages',
+      data: {
+        'type': messageTypeForMime(mime),
+        'content': caption.trim().isEmpty ? fileName : caption.trim(),
+        if (replyTo != null) 'replyToId': replyTo,
+      },
+    );
+    return MessageJson.from(unwrap(res.data) as Map);
   }
 
   Future<void> pin(Object conversationId, Object messageId) async {

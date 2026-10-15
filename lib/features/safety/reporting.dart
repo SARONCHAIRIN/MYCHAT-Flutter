@@ -33,8 +33,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           .post(
             '/api/v1/reports',
             data: {
-              'targetType': widget.targetType,
-              'targetId': widget.targetId,
+              'reportedUserId': widget.targetType.toLowerCase() == 'user' ? widget.targetId : null,
+              'conversationId': widget.targetType.toLowerCase() == 'conversation' ? widget.targetId : null,
+              'messageId': widget.targetType.toLowerCase() == 'message' ? widget.targetId : null,
               'reason': reason,
               'description': details.text.trim(),
             },
