@@ -33,3 +33,7 @@ bash tool/quality_gate.sh
 - [Delivery report](FINAL_IMPLEMENTATION_REPORT.md)
 
 **Do not publish:** release identifiers, signing, controlled-backend E2E and physical-device QA are not yet verified.
+
+## Setup (added)
+`flutter pub get`, then `flutter run --dart-define=API_BASE_URL=https://mychat-umla.onrender.com`.
+See KNOWN_LIMITATIONS.md before testing image messages: the backend does not currently serve `/uploads`.

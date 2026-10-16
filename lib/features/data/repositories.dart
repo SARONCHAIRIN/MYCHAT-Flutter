@@ -20,10 +20,11 @@ class UserRepository {
       asJson((await dio.get('${ApiPaths.users}/$id')).data);
   Future<Json> update(Json patch) async =>
       asJson((await dio.patch('${ApiPaths.users}/me', data: patch)).data);
-  Future<Json> avatar(String filePath) async => asJson(
-    (await dio.patch(
-      '${ApiPaths.users}/me/avatar',
-      data: FormData.fromMap({'file': await MultipartFile.fromFile(filePath)}),
+  /// PATCH /users/me/avatar expects JSON {avatarUrl}, not multipart data.
+  /// Uploading a local image requires a separate image-hosting service.
+  Future<Json> avatar(String avatarUrl) async => asJson(
+    (await dio.patch('${ApiPaths.users}/me/avatar',
+      data: {'avatarUrl': avatarUrl},
     )).data,
   );
   Future<List<Json>> list({int page = 0, int size = 20}) async => listPayload(
@@ -63,6 +64,11 @@ class ConversationRepository {
       data: payload,
     )).data,
   );
+  Future<Json> changeMemberRole(Object id, Object userId, String role) async =>
+      asJson((await dio.patch(
+        '${ApiPaths.conversations}/$id/members/$userId/role',
+        data: {'role': role},
+      )).data);
   Future<void> removeMember(Object id, Object userId) async =>
       dio.delete('${ApiPaths.conversations}/$id/members/$userId');
 }
