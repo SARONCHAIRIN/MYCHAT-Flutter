@@ -183,96 +183,102 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: Colors.white,
-        appBar: register
-            ? AppBar(
-                backgroundColor: Colors.white,
-                foregroundColor: Tg.text,
-                leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: busy ? null : () => setState(() => register = false)),
-              )
-            : null,
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Form(
                 key: form,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
-                  children: [
-                    if (!register) const SizedBox(height: 40),
-                    Center(
-                      child: Container(
-                        width: register ? 96 : 130,
-                        height: register ? 96 : 130,
-                        decoration: const BoxDecoration(color: Tg.accent, shape: BoxShape.circle),
-                        child: Icon(Icons.send_rounded, color: Colors.white, size: register ? 46 : 62),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    Text(register ? 'Your details' : 'MYCHAT',
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (register)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: busy ? null : () => setState(() => register = false),
+                          ),
+                        )
+                      else ...[
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Container(
+                            width: 96,
+                            height: 96,
+                            decoration: const BoxDecoration(color: Tg.accent, shape: BoxShape.circle),
+                            child: const Icon(Icons.send_rounded, color: Colors.white, size: 48),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Text(register ? 'Create account' : 'MYCHAT Login',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Tg.text)),
+                      const SizedBox(height: 8),
+                      Text(
+                        register ? 'Please enter your name, username, email and a password.' : 'Please sign in to continue your conversations.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: Tg.text)),
-                    const SizedBox(height: 10),
-                    Text(
-                      register ? 'Please enter your name, username, email and a password.' : 'Please sign in to continue your conversations.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 15, color: Tg.secondary, height: 1.35),
-                    ),
-                    const SizedBox(height: 32),
-                    if (register) ...[
-                      TextFormField(
-                        controller: name,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: _tgField('Full name', Icons.person_outline),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Full name is required' : null,
+                        style: const TextStyle(fontSize: 14, color: Tg.secondary, height: 1.3),
                       ),
-                      const SizedBox(height: 14),
-                    ],
-                    TextFormField(
-                      controller: username,
-                      autocorrect: false,
-                      decoration: _tgField('Username', Icons.alternate_email),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Username is required' : null,
-                    ),
-                    const SizedBox(height: 14),
-                    if (register) ...[
+                      const SizedBox(height: 20),
+                      if (register) ...[
+                        TextFormField(
+                          controller: name,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: _tgField('Full name', Icons.person_outline),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       TextFormField(
-                        controller: email,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _tgField('Email', Icons.mail_outline),
-                        validator: (v) => v != null && v.contains('@') ? null : 'Enter a valid email',
+                        controller: username,
+                        autocorrect: false,
+                        decoration: _tgField('Username', Icons.alternate_email),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 14),
-                    ],
-                    TextFormField(
-                      controller: password,
-                      obscureText: obscure,
-                      decoration: _tgField(
-                        'Password',
-                        Icons.lock_outline,
-                        suffix: IconButton(
-                          onPressed: () => setState(() => obscure = !obscure),
-                          icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Tg.secondary),
+                      const SizedBox(height: 12),
+                      if (register) ...[
+                        TextFormField(
+                          controller: email,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: _tgField('Email', Icons.mail_outline),
+                          validator: (v) => v != null && v.contains('@') ? null : 'Invalid email',
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextFormField(
+                        controller: password,
+                        obscureText: obscure,
+                        decoration: _tgField(
+                          'Password',
+                          Icons.lock_outline,
+                          suffix: IconButton(
+                            onPressed: () => setState(() => obscure = !obscure),
+                            icon: Icon(obscure ? Icons.visibility : Icons.visibility_off, color: Tg.secondary),
+                          ),
+                        ),
+                        validator: (v) => v == null || v.length < 6 ? 'At least 6 characters' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton(
+                        onPressed: busy ? null : _submit,
+                        child: busy
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Text(register ? 'Register' : 'Login', style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: TextButton(
+                          onPressed: busy ? null : () => setState(() => register = !register),
+                          child: Text(register ? 'Already have an account? Login' : 'Create account',
+                              style: const TextStyle(color: Tg.accent, fontSize: 15)),
                         ),
                       ),
-                      validator: (v) => v == null || v.length < 8 ? 'At least 8 characters' : null,
-                    ),
-                    const SizedBox(height: 28),
-                    FilledButton(
-                      onPressed: busy ? null : _submit,
-                      child: busy
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(register ? 'CREATE ACCOUNT' : 'SIGN IN', style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: TextButton(
-                        onPressed: busy ? null : () => setState(() => register = !register),
-                        child: Text(register ? 'Already have an account? Sign in' : 'Create a new account',
-                            style: const TextStyle(color: Tg.accent, fontSize: 15)),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
