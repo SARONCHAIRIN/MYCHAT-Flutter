@@ -45,7 +45,7 @@ void main() {
           expect(options.data, {
             'content': 'hello',
             'type': 'TEXT',
-            'replyToMessageId': 7,
+            'replyToId': 7,
           });
           handler.resolve(
             Response(
