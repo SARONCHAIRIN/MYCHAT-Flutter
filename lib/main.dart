@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'firebase_options.dart';
 import 'core/theme/stitch_theme.dart';
+import 'core/preferences/app_preferences.dart';
 import 'features/auth/auth.dart';
 import 'features/ui/screens.dart';
 import 'core/notifications/firebase_messaging_service.dart';
@@ -27,6 +28,7 @@ class MyChatApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final preferences = ref.watch(appPreferencesProvider);
 
     ref.listen(authProvider, (previous, next) {
       _syncNotificationAuth(ref, next);
@@ -42,6 +44,9 @@ class MyChatApp extends ConsumerWidget {
       title: 'MYCHAT',
       debugShowCheckedModeBanner: false,
       theme: StitchTheme.light(),
+      darkTheme: StitchTheme.dark(),
+      themeMode: preferences.themeMode,
+      locale: Locale(preferences.languageCode),
       home: auth.when(
         loading: () => const Scaffold(
           body: Center(
