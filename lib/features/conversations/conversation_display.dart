@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/user_avatar.dart' show validAvatarUrl;
 
 /// Resolves the title/avatar shown for a conversation.
 /// DIRECT chats display the OTHER member; GROUP chats use the group fields.
@@ -58,12 +59,14 @@ ConversationDisplay resolveConversationDisplay(
         continue;
       }
       final name = _clean(nested['name']) ??
+          _clean(member['name']) ??
           _clean(nested['fullName']) ??
           _clean(nested['username']);
       // Never fall back to the current user's avatar; initials are used instead.
       return ConversationDisplay(
         name ?? ownName ?? 'Unknown user',
-        _clean(nested['avatarUrl'] ?? nested['avatar_url']),
+        _clean(nested['avatarUrl'] ?? nested['avatar_url'] ??
+            member['avatarUrl'] ?? member['avatar_url']),
         false,
         id,
       );
@@ -129,7 +132,8 @@ class ConversationAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = display.avatarUrl;
+    // Share links and Google redirect pages are not image resources.
+    final url = validAvatarUrl(display.avatarUrl);
 
     Widget fallback() {
       if (display.isSelf) {
