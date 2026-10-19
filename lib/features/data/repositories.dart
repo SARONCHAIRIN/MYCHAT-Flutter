@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api.dart';
-
+import 'package:flutter/foundation.dart';
 typedef Json = Map<String, dynamic>;
 Json asJson(dynamic value) => Json.from(unwrap(value) as Map);
 final userRepositoryProvider = Provider(
@@ -20,13 +20,33 @@ class UserRepository {
       asJson((await dio.get('${ApiPaths.users}/$id')).data);
   Future<Json> update(Json patch) async =>
       asJson((await dio.patch('${ApiPaths.users}/me', data: patch)).data);
-  /// PATCH /users/me/avatar expects JSON {avatarUrl}, not multipart data.
-  /// Uploading a local image requires a separate image-hosting service.
-  Future<Json> avatar(String avatarUrl) async => asJson(
-    (await dio.patch('${ApiPaths.users}/me/avatar',
-      data: {'avatarUrl': avatarUrl},
-    )).data,
-  );
+  /// Upload the selected image to the backend (multipart field name: file).
+  Future<dynamic> uploadAvatar(String filePath) async {
+  final formData = FormData.fromMap({
+    'file': await MultipartFile.fromFile(
+      filePath,
+      filename: filePath.split('/').last,
+    ),
+  });
+
+  try {
+    debugPrint('Starting avatar upload...');
+
+    final response = await dio.patch(
+      '/api/v1/users/me/avatar',
+      data: formData,
+    );
+
+    debugPrint('Avatar status: ${response.statusCode}');
+    debugPrint('Avatar response: ${response.data}');
+
+    return response.data;
+  } on DioException catch (e) {
+    debugPrint('Avatar upload failed: ${e.response?.statusCode}');
+    debugPrint('Response: ${e.response?.data}');
+    rethrow;
+  }
+}
   Future<List<Json>> list({int page = 0, int size = 20}) async => listPayload(
     (await dio.get(
       ApiPaths.users,

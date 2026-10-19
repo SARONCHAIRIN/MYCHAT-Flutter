@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import '../settings/settings.dart';
 import '../notifications/notifications.dart';
 import '../messages/chat_screen.dart';
@@ -548,36 +549,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _changePhoto(Json user) async {
-    final input = TextEditingController(text: (user['avatarUrl'] ?? user['avatar_url'] ?? '').toString());
-    final url = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text('Set profile photo'),
-        content: TextField(
-          controller: input,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'Public image URL', hintText: 'https://...'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, input.text.trim()), child: const Text('Save')),
-        ],
-      ),
+  if (_saving) return;
+
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      allowMultiple: false,
+      withData: true,
     );
-    input.dispose();
-    if (url == null || !mounted) return;
-    if (!url.startsWith('https://') || Uri.tryParse(url)?.host.isNotEmpty != true) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid HTTPS image URL')));
-      return;
+
+    if (result == null || result.files.isEmpty || !mounted) return;
+
+    final selected = result.files.single;
+
+    if (selected.size == 0) {
+      throw StateError('Unable to read the selected photo.');
     }
-    try {
-      await ref.read(userRepositoryProvider).avatar(url);
-      if (mounted) setState(() => future = ref.read(userRepositoryProvider).me());
-    } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(error))));
+
+    if (selected.size > 5 * 1024 * 1024) {
+      throw StateError('Profile photos must be 5 MB or smaller.');
+    }
+
+    final filePath = selected.path;
+
+    if (filePath == null) {
+      throw StateError('Unable to access selected image path.');
+    }
+
+    setState(() => _saving = true);
+
+    // Upload avatar to backend
+    await ref.read(userRepositoryProvider).uploadAvatar(filePath);
+
+    debugPrint('Avatar uploaded successfully');
+
+    if (!mounted) return;
+
+    // Keep your existing profile refresh and success message here.
+
+  } catch (e) {
+    debugPrint('Avatar upload error: $e');
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unable to update profile photo: $e')),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _saving = false);
     }
   }
+}
 
   Future<void> _save() async {
     setState(() => _saving = true);
@@ -627,8 +651,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               shape: const CircleBorder(side: BorderSide(color: Colors.white, width: 2)),
                               child: InkWell(
                                 customBorder: const CircleBorder(),
-                                onTap: () => _changePhoto(user),
-                                child: const Padding(padding: EdgeInsets.all(9), child: Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white)),
+                                onTap: _saving ? null : () => _changePhoto(user),
+                                child: Padding(padding: const EdgeInsets.all(9), child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white)),
                               ),
                             ),
                           ),

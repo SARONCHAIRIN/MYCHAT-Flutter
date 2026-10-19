@@ -5,6 +5,7 @@ import 'package:mychat/core/widgets/user_avatar.dart';
 void main() {
   test('share links and invalid values are not treated as images', () {
     expect(validAvatarUrl('https://share.google/RmBC7WOgRXF6ljdbv'), isNull);
+    expect(validAvatarUrl('https://www.google.com/url?sa=t&url=https%3A%2F%2Fexample.com'), isNull);
     expect(validAvatarUrl(''), isNull);
     expect(validAvatarUrl(null), isNull);
     expect(validAvatarUrl('ftp://x.test/a.png'), isNull);

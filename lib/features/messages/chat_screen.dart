@@ -360,6 +360,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     add(message['imageUrl']);
     final id = messageKey(message);
     if (_uploadedAttachments.containsKey(id)) add(_uploadedAttachments[id]);
+    // A selected image should be visible immediately in its own bubble,
+    // even before the upload response arrives. This is a local preview only:
+    // persistence still depends on the backend returning attachment metadata.
+    final localPath = _localFiles[id];
+    if (results.isEmpty && localPath != null) {
+      results.add({
+        'fileName': localPath.split('/').last,
+        'mimeType': mimeTypeForFile(localPath) ?? 'application/octet-stream',
+        'localPreview': true,
+      });
+    }
     return results;
   }
 
@@ -386,6 +397,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         );
         final local = _localFiles[messageKey(message)];
         final resolved = resolveAttachmentUrl(url, apiBaseUrl);
+        final isPendingLocal = file['localPreview'] == true;
         Widget broken() => Container(
           width: 245, height: 100, color: const Color(0xffedf0f4),
           alignment: Alignment.center,
@@ -407,7 +419,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
               body: Center(child: InteractiveViewer(minScale: 1, maxScale: 5, child: image(BoxFit.contain))),
             ))),
-            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: image(BoxFit.cover, w: 245, h: 210)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: Stack(children: [
+                image(BoxFit.cover, w: 245, h: 210),
+                if (isPendingLocal)
+                  Positioned(
+                    left: 8, bottom: 8,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xCC17212B),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        child: Text('Local preview · upload pending',
+                          style: TextStyle(fontSize: 11, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
           ),
         );
       }),

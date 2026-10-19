@@ -26,6 +26,19 @@ void main() {
     expect(d.avatarUrl, 'https://x.test/rin5.jpg');
   });
 
+  test('nested member with top-level avatar uses peer fields', () {
+    final d = resolveConversationDisplay({
+      'type': 'DIRECT',
+      'members': [
+        {'userId': 7, 'name': 'me'},
+        {'userId': 8, 'name': 'rin1', 'avatarUrl': 'https://x.test/a.png',
+         'user': {'id': 8, 'username': 'rin1'}},
+      ],
+    }, currentUserId: 7);
+    expect(d.name, 'rin1');
+    expect(d.avatarUrl, 'https://x.test/a.png');
+  });
+
   test('missing avatar and name fall back safely', () {
     final d = resolveConversationDisplay({
       'type': 'DIRECT',

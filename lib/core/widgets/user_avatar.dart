@@ -15,6 +15,10 @@ String? validAvatarUrl(String? raw) {
   if (resolved == null) return null;
   final host = Uri.parse(resolved).host.toLowerCase();
   if (_nonImageHosts.contains(host)) return null;
+  // Google search redirect pages return HTML, not decodable image bytes.
+  final uri = Uri.parse(resolved);
+  if ((host == 'google.com' || host == 'www.google.com') &&
+      uri.path == '/url') return null;
   if (_failedAvatarUrls.contains(resolved)) return null;
   return resolved;
 }
