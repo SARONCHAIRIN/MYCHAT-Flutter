@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../network/api.dart';
 import '../../features/conversations/conversation_display.dart';
 import '../../features/uploads/attachment.dart';
-import '../network/api.dart';
 
 /// Hosts that serve HTML share pages instead of image bytes.
 const _nonImageHosts = {'share.google', 'photos.app.goo.gl', 'goo.gl', 'g.co'};
 
-/// URLs that failed to decode this session; never retried (no repeated errors).
-final Set<String> _failedAvatarUrls = <String>{};
 
 /// Returns a loadable absolute URL, or null when the value cannot be an image.
 String? validAvatarUrl(String? raw) {
@@ -19,13 +18,12 @@ String? validAvatarUrl(String? raw) {
   final uri = Uri.parse(resolved);
   if ((host == 'google.com' || host == 'www.google.com') &&
       uri.path == '/url') return null;
-  if (_failedAvatarUrls.contains(resolved)) return null;
   return resolved;
 }
 
 /// Single avatar widget used everywhere: validated URL, loading placeholder,
 /// and initials fallback when the URL is missing, not an image, or fails.
-class UserAvatar extends StatelessWidget {
+class UserAvatar extends ConsumerWidget {
   const UserAvatar({
     super.key,
     required this.label,
@@ -39,7 +37,7 @@ class UserAvatar extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final src = validAvatarUrl(url);
     final size = radius * 2;
     final fallback = group
@@ -53,8 +51,17 @@ class UserAvatar extends StatelessWidget {
       child: src == null
           ? fallback
           : ClipOval(
-              child: Image.network(
+              child: FutureBuilder<String?>(
+                future: ref.read(tokenStoreProvider).access,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return Center(child: fallback);
+                  }
+                  final token = snapshot.data;
+                  return Image.network(
                 src,
+                headers: token == null || token.isEmpty
+                    ? null : {'Authorization': 'Bearer $token'},
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
@@ -63,8 +70,10 @@ class UserAvatar extends StatelessWidget {
                     progress == null ? child : fallback,
                 // "Invalid image data" and HTTP failures land here.
                 errorBuilder: (_, __, ___) {
-                  _failedAvatarUrls.add(src);
+                  debugPrint('Avatar failed to load: $src');
                   return fallback;
+                },
+              );
                 },
               ),
             ),

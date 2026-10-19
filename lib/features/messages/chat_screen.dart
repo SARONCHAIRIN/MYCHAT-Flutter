@@ -37,8 +37,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final Map<String, List<MessageJson>> _reactionCache = {};
   final Set<String> _reactionLoading = {};
   final Map<String, MessageJson> _uploadedAttachments = {};
-  // Sender-side local copies. The backend neither lists attachments in message
-  // history nor serves /uploads, so this is the only way an image can show.
+  final Set<String> _mediaLookupInFlight = {};
+  final Set<String> _mediaLookupDone = {};
+  // Temporary local previews while uploads finish. Persisted images come from
+  // the attachment URLs in the message history API.
   final Map<String, String> _localFiles = {};
   final Set<String> _pinnedIds = {};
   double? _uploadProgress;
@@ -348,7 +350,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         final url = map['url'] ?? map['fileUrl'] ?? map['downloadUrl'] ??
           map['attachmentUrl'] ?? map['imageUrl'] ?? map['file_url'] ?? map['storageUrl'];
         if (url is String && url.trim().isNotEmpty) results.add(map);
-      } else if (value is String && value.startsWith('http')) {
+      } else if (value is String && value.trim().isNotEmpty) {
+        // Upload responses and history may contain relative /uploads/ paths.
         results.add({'url': value});
       }
     }
@@ -358,6 +361,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     add(message['fileUrl']);
     add(message['attachmentUrl']);
     add(message['imageUrl']);
+    add(message['image_url']);
+    add(message['file_url']);
+    add(message['media']);
     final id = messageKey(message);
     if (_uploadedAttachments.containsKey(id)) add(_uploadedAttachments[id]);
     // A selected image should be visible immediately in its own bubble,
@@ -369,6 +375,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         'fileName': localPath.split('/').last,
         'mimeType': mimeTypeForFile(localPath) ?? 'application/octet-stream',
         'localPreview': true,
+      });
+    }
+    // Some backend versions omit attachments in the history list. Request the
+    // single-message endpoint once as a fallback, then merge its media fields.
+    final type = (message['type'] ?? '').toString().toUpperCase();
+    if (results.isEmpty && (type == 'IMAGE' || type == 'FILE') &&
+        id.isNotEmpty && !_mediaLookupInFlight.contains(id) &&
+        !_mediaLookupDone.contains(id)) {
+      _mediaLookupInFlight.add(id);
+      Future.microtask(() async {
+        try {
+          final fresh = await ref.read(messageRepositoryProvider).get(id);
+          if (!mounted) return;
+          final merged = <String, dynamic>{...message, ...fresh};
+          setState(() {
+            messages = [
+              for (final item in messages)
+                if (messageKey(item) == id) merged else item,
+            ];
+          });
+        } catch (error) {
+          debugPrint('Media metadata lookup failed for message $id: $error');
+        } finally {
+          _mediaLookupInFlight.remove(id);
+          _mediaLookupDone.add(id);
+        }
       });
     }
     return results;
@@ -407,10 +439,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           : resolved == null
             ? broken()
             : Image.network(resolved, width: w, height: h, fit: fit,
-                headers: _token == null ? null : {'Authorization': 'Bearer $_token'},
+                headers: _token == null || _token!.isEmpty ? null : {'Authorization': 'Bearer $_token'},
                 loadingBuilder: (_, child, p) => p == null ? child
                   : SizedBox(width: w, height: h ?? 120, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                errorBuilder: (_, __, ___) => broken());
+                errorBuilder: (_, error, __) {
+                  debugPrint('Message image failed to load: $resolved ($error)');
+                  return broken();
+                });
         return Padding(
           padding: const EdgeInsets.only(bottom: 5),
           child: GestureDetector(
@@ -555,7 +590,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         progress: (sent, total) {
           if (mounted && total > 0) setState(() => _uploadProgress = sent / total);
         });
-      if (mounted) setState(() => _uploadedAttachments[id] = uploaded);
+      if (mounted) {
+        setState(() => _uploadedAttachments[id] = uploaded);
+        // Re-fetch server-backed message metadata after upload, so rendering
+        // does not rely solely on the local file preview.
+        try {
+          final fresh = await ref.read(messageRepositoryProvider).get(id);
+          if (mounted) setState(() { messages = mergeMessages(messages, [fresh]); });
+        } catch (error) {
+          debugPrint('Unable to refresh uploaded message $id: $error');
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

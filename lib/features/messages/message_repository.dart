@@ -34,7 +34,8 @@ class MessageRepository {
         ? (data['messages'] ?? data['content'] ?? data['items'] ?? <dynamic>[])
         : <dynamic>[];
     final items = (list as List)
-        .map((e) => MessageJson.from(e as Map))
+        .whereType<Map>()
+        .map((e) => MessageJson.from(e))
         .toList();
     final cursor = data is Map
         ? (data['nextCursor'] ?? data['next_cursor'])?.toString()

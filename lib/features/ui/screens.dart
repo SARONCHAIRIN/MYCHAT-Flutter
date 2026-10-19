@@ -549,59 +549,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _changePhoto(Json user) async {
-  if (_saving) return;
+    if (_saving) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty || !mounted) return;
+      final selected = result.files.single;
+      if (selected.size == 0) {
+        throw StateError('Unable to read the selected photo. Please try again.');
+      }
+      if (selected.size > 5 * 1024 * 1024) {
+        throw StateError('Profile photos must be 5 MB or smaller.');
+      }
+      final filePath = selected.path;
+      if (filePath == null || filePath.isEmpty) {
+        throw StateError('Unable to access the selected photo path.');
+      }
+      setState(() => _saving = true);
+      final bytes = selected.bytes;
 
-  try {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-      allowMultiple: false,
-      withData: true,
-    );
+if (bytes == null || bytes.isEmpty) {
+  throw StateError('Unable to read the selected image.');
+}
 
-    if (result == null || result.files.isEmpty || !mounted) return;
-
-    final selected = result.files.single;
-
-    if (selected.size == 0) {
-      throw StateError('Unable to read the selected photo.');
-    }
-
-    if (selected.size > 5 * 1024 * 1024) {
-      throw StateError('Profile photos must be 5 MB or smaller.');
-    }
-
-    final filePath = selected.path;
-
-    if (filePath == null) {
-      throw StateError('Unable to access selected image path.');
-    }
-
-    setState(() => _saving = true);
-
-    // Upload avatar to backend
-    await ref.read(userRepositoryProvider).uploadAvatar(filePath);
-
-    debugPrint('Avatar uploaded successfully');
-
-    if (!mounted) return;
-
-    // Keep your existing profile refresh and success message here.
-
-  } catch (e) {
-    debugPrint('Avatar upload error: $e');
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Unable to update profile photo: $e')),
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _saving = false);
+await ref.read(userRepositoryProvider).uploadAvatar(
+  bytes: bytes,
+  fileName: selected.name,
+);
+      // All screens watching authProvider rebuild with the latest avatar URL.
+      ref.invalidate(authProvider);
+      if (!mounted) return;
+      setState(() => future = ref.read(userRepositoryProvider).me());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error is StateError ? error.message.toString() : apiError(error))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
-}
 
   Future<void> _save() async {
     setState(() => _saving = true);

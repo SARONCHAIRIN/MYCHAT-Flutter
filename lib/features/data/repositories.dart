@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api.dart';
-import 'package:flutter/foundation.dart';
+
 typedef Json = Map<String, dynamic>;
 Json asJson(dynamic value) => Json.from(unwrap(value) as Map);
 final userRepositoryProvider = Provider(
@@ -21,32 +21,23 @@ class UserRepository {
   Future<Json> update(Json patch) async =>
       asJson((await dio.patch('${ApiPaths.users}/me', data: patch)).data);
   /// Upload the selected image to the backend (multipart field name: file).
-  Future<dynamic> uploadAvatar(String filePath) async {
-  final formData = FormData.fromMap({
-    'file': await MultipartFile.fromFile(
-      filePath,
-      filename: filePath.split('/').last,
-    ),
-  });
-
-  try {
-    debugPrint('Starting avatar upload...');
-
-    final response = await dio.patch(
-      '/api/v1/users/me/avatar',
-      data: formData,
-    );
-
-    debugPrint('Avatar status: ${response.statusCode}');
-    debugPrint('Avatar response: ${response.data}');
-
-    return response.data;
-  } on DioException catch (e) {
-    debugPrint('Avatar upload failed: ${e.response?.statusCode}');
-    debugPrint('Response: ${e.response?.data}');
-    rethrow;
+  Future<Json> uploadAvatar({required List<int> bytes, required String fileName}) async {
+    final lower = fileName.toLowerCase();
+    final mime = lower.endsWith('.png') ? 'image/png'
+        : lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: fileName,
+        contentType: DioMediaType.parse(mime),
+      ),
+    });
+    return asJson((await dio.patch(
+      '${ApiPaths.users}/me/avatar',
+      data: form,
+      options: Options(contentType: Headers.multipartFormDataContentType),
+    )).data);
   }
-}
   Future<List<Json>> list({int page = 0, int size = 20}) async => listPayload(
     (await dio.get(
       ApiPaths.users,
