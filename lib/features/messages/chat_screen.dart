@@ -51,6 +51,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final ValueNotifier<bool> _showJump = ValueNotifier(false);
   Json? _conversation;
   Json? _peer;
+  int? _groupMemberCount;
   Object? get _ownId {
     final account = ref.read(authProvider).valueOrNull;
     return account?['id'] ?? account?['userId'];
@@ -87,7 +88,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         }
       }
-      if (mounted) setState(() { _conversation = details; _peer = peer; });
+      int? groupMemberCount;
+      if (type == 'GROUP') {
+        final embedded = details['members'];
+        if (embedded is List) {
+          groupMemberCount = embedded.length;
+        } else {
+          try {
+            groupMemberCount = (await repo.members(widget.conversationId)).length;
+          } catch (_) { /* Leave count unavailable when access fails. */ }
+        }
+      }
+      if (mounted) setState(() { _conversation = details; _peer = peer; _groupMemberCount = groupMemberCount; });
     } catch (_) { /* Keep chat usable if details are unavailable. */ }
   }
 
@@ -872,7 +884,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         mainAxisSize: MainAxisSize.min, children: [
           Text(_chatName, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
-          Text(_isGroup ? 'group chat' : 'MYCHAT',
+          Text(_isGroup ? (_groupMemberCount == null ? 'group chat' : '$_groupMemberCount members') : 'MYCHAT',
             style: const TextStyle(fontSize: 12.5, color: _tgMuted, fontWeight: FontWeight.w400)),
         ])),
     ]),

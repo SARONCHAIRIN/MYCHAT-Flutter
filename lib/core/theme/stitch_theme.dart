@@ -45,4 +45,19 @@ class StitchTheme {
       dividerTheme: const DividerThemeData(color: Color(0xffeaf0f5), thickness: 0.7),
     );
   }
+  static ThemeData dark() {
+    final scheme = ColorScheme.fromSeed(seedColor: primary, brightness: Brightness.dark);
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xff101923),
+      appBarTheme: const AppBarTheme(backgroundColor: Color(0xff17212b), foregroundColor: Colors.white, surfaceTintColor: Colors.transparent),
+      cardTheme: CardThemeData(color: const Color(0xff202e3b), elevation: 0, margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+      navigationBarTheme: const NavigationBarThemeData(backgroundColor: Color(0xff17212b), indicatorColor: Color(0xff304c64)),
+      inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xff243442),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none)),
+    );
+  }
 }

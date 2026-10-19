@@ -1,3 +1,6 @@
+import '../../core/preferences/app_preferences.dart';
+import '../../core/widgets/user_avatar.dart';
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,12 +15,12 @@ final notificationsRepositoryProvider = Provider(
 class NotificationsRepository {
   final Dio dio;
   NotificationsRepository(this.dio);
-  Future<List<Map<String, dynamic>>> page(int page) async => listPayload(
-    (await dio.get(
-      '/api/v1/notifications',
-      queryParameters: {'page': page, 'size': 20},
-    )).data,
-  ).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  Future<List<Map<String, dynamic>>> page(int page) async {
+    final response = await dio.get('/api/v1/notifications', queryParameters: {'page': page, 'size': 20});
+    final data = unwrap(response.data);
+    final raw = data is List ? data : data is Map ? (data['notifications'] ?? data['content'] ?? data['items'] ?? <dynamic>[]) : <dynamic>[];
+    return (raw as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
   Future<void> markRead(Object id) async {
     await dio.post('/api/v1/notifications/$id/read');
   }
@@ -80,6 +83,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final _scroll = ScrollController();
+  Timer? _refreshTimer;
   List<Map<String, dynamic>> items = [];
   int page = 0;
   bool busy = false, hasMore = true;
@@ -99,10 +103,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     });
     Future.microtask(load);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !busy) load(reset: true);
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _scroll.dispose();
     super.dispose();
   }
@@ -189,6 +197,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final bg = dark ? const Color(0xFF0F0F0F) : Colors.white;
     final secondary = dark ? const Color(0xFF8D8E93) : const Color(0xFF8A8A8E);
     final divider = dark ? const Color(0xFF2C2C2E) : const Color(0xFFE3E3E8);
+    final lang = ref.watch(appPreferencesProvider).languageCode;
     final unreadCount = items.where((n) => !_isRead(n)).length;
 
     return Scaffold(
@@ -202,7 +211,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Notifications',
+            Text(tr('Notifications', lang),
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
             if (unreadCount > 0)
               Text('$unreadCount unread',
@@ -286,10 +295,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           children: [
             Icon(Icons.notifications_none, size: 64, color: secondary),
             const SizedBox(height: 12),
-            const Text('No notifications',
+            Text(tr('No notifications', ref.watch(appPreferencesProvider).languageCode),
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text('New activity will show up here.',
+            Text(tr('New activity will show up here.', ref.watch(appPreferencesProvider).languageCode),
                 style: TextStyle(color: secondary)),
           ],
         ),
@@ -373,7 +382,9 @@ class _NotificationRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Container(
+            if ((n['senderAvatarUrl'] ?? n['senderAvatar'] ?? n['avatarUrl'] ?? n['avatar_url'])?.toString().isNotEmpty == true)
+              UserAvatar(label: title, url: (n['senderAvatarUrl'] ?? n['senderAvatar'] ?? n['avatarUrl'] ?? n['avatar_url']).toString(), radius: 26)
+            else Container(
               width: 52,
               height: 52,
               decoration: BoxDecoration(

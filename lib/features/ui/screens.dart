@@ -1,3 +1,4 @@
+import '../../core/preferences/app_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import '../settings/settings.dart';
 import '../notifications/notifications.dart';
@@ -386,7 +387,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const titles = ['Chats', 'Contacts', 'Notifications', 'My profile'];
+    final lang = ref.watch(appPreferencesProvider).languageCode;
+    final titles = ['Chats', 'Contacts', 'Notifications', 'My profile'].map((t) => tr(t, lang)).toList();
     return Scaffold(
       appBar: AppBar(
         leading: searching
@@ -460,7 +462,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _drawerItem(Icons.notifications_none, 'Notifications', () { Navigator.pop(context); setState(() => selected = 2); }),
               _drawerItem(Icons.account_circle_outlined, 'My profile', () { Navigator.pop(context); setState(() => selected = 3); }),
               const Divider(height: 16),
-              _drawerItem(Icons.settings_outlined, 'Settings & privacy', () {
+              _drawerItem(Icons.palette_outlined, tr('Appearance & language', lang), () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AppearanceLanguageScreen()));
+              }),
+              _drawerItem(Icons.settings_outlined, tr('Settings & privacy', lang), () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }),
@@ -505,11 +511,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             selected = index;
             if (index != 0 && searching) _closeSearch();
           }),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.chat_bubble_outline_rounded), selectedIcon: Icon(Icons.chat_bubble_rounded), label: 'Chats'),
-            NavigationDestination(icon: Icon(Icons.account_box_outlined), selectedIcon: Icon(Icons.account_box_rounded), label: 'Contacts'),
-            NavigationDestination(icon: Icon(Icons.notifications_none_rounded), selectedIcon: Icon(Icons.notifications_rounded), label: 'Alerts'),
-            NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: 'Profile'),
+          destinations:  [
+            NavigationDestination(icon: Icon(Icons.chat_bubble_outline_rounded), selectedIcon: Icon(Icons.chat_bubble_rounded), label: tr('Chats', lang)),
+            NavigationDestination(icon: Icon(Icons.account_box_outlined), selectedIcon: Icon(Icons.account_box_rounded), label: tr('Contacts', lang)),
+            NavigationDestination(icon: Icon(Icons.notifications_none_rounded), selectedIcon: Icon(Icons.notifications_rounded), label: tr('Alerts', lang)),
+            NavigationDestination(icon: Icon(Icons.account_circle_outlined), selectedIcon: Icon(Icons.account_circle), label: tr('Profile', lang)),
           ],
         ),
       ),
@@ -1113,6 +1119,34 @@ class ConversationDetailsScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+class AppearanceLanguageScreen extends ConsumerWidget {
+  const AppearanceLanguageScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pref = ref.watch(appPreferencesProvider);
+    final lang = pref.languageCode;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Appearance & language', lang))),
+      body: ListView(children: [
+        ListTile(title: Text(tr('Theme', lang))),
+        for (final mode in ThemeMode.values)
+          RadioListTile<ThemeMode>(
+            title: Text(tr(mode == ThemeMode.system ? 'System' : mode == ThemeMode.dark ? 'Dark' : 'Light', lang)),
+            value: mode, groupValue: pref.themeMode,
+            onChanged: (value) { if (value != null) ref.read(appPreferencesProvider.notifier).setTheme(value); },
+          ),
+        const Divider(),
+        ListTile(title: Text(tr('Language', lang))),
+        for (final code in ['en', 'km'])
+          RadioListTile<String>(
+            title: Text(tr(code == 'en' ? 'English' : 'Khmer', lang)),
+            value: code, groupValue: lang,
+            onChanged: (value) { if (value != null) ref.read(appPreferencesProvider.notifier).setLanguage(value); },
+          ),
+      ]),
     );
   }
 }
