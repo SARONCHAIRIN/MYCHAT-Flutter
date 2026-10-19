@@ -5,11 +5,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../firebase_options.dart';
+import 'notification_history_cache.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await NotificationHistoryCache.save(message);
   debugPrint('Background FCM message received: ${message.messageId}');
 }
 
@@ -66,6 +68,7 @@ class FirebaseMessagingService {
     _messageSubscription = FirebaseMessaging.onMessage.listen((message) {
       debugPrint('Foreground FCM received: ${message.messageId}');
 
+      unawaited(NotificationHistoryCache.save(message));
       onMessage?.call(message);
     });
 
@@ -77,6 +80,7 @@ class FirebaseMessagingService {
     ) {
       debugPrint('Notification tapped: ${message.messageId}');
 
+      unawaited(NotificationHistoryCache.save(message));
       onNotificationTap?.call(message);
     });
 
@@ -86,6 +90,7 @@ class FirebaseMessagingService {
     if (initialMessage != null) {
       debugPrint('Initial notification: ${initialMessage.messageId}');
 
+      unawaited(NotificationHistoryCache.save(initialMessage));
       onNotificationTap?.call(initialMessage);
     }
 

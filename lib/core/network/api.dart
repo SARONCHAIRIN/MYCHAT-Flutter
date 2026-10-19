@@ -37,45 +37,85 @@ class TokenStore {
   }
 }
 
+/// Shares refresh across concurrent 401s and retries the original request once.
 final dioProvider = Provider<Dio>((ref) {
   final tokens = ref.read(tokenStoreProvider);
+  final dio = Dio(BaseOptions(
+    baseUrl: apiBaseUrl,
+    connectTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
+    headers: {'Accept': 'application/json'},
+  ));
+  Future<String?>? refreshInFlight;
 
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: apiBaseUrl,
-      connectTimeout: const Duration(seconds: 60),
-      receiveTimeout: const Duration(seconds: 60),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    ),
-  );
+  Future<String?> refreshAccessToken() async {
+    final pending = refreshInFlight;
+    if (pending != null) return pending;
+    final future = () async {
+      final refresh = await tokens.refresh;
+      if (refresh == null || refresh.isEmpty) return null;
+      // Use a separate Dio client to avoid recursive auth interceptors.
+      final client = Dio(BaseOptions(baseUrl: apiBaseUrl));
+      try {
+        final response = await client.post('${ApiPaths.auth}/refresh',
+          data: {'refreshToken': refresh});
+        final payload = unwrap(response.data);
+        if (payload is! Map) return null;
+        final access = (payload['accessToken'] ?? payload['access_token'] ?? '').toString();
+        if (access.isEmpty) return null;
+        final rotated = (payload['refreshToken'] ?? payload['refresh_token'])?.toString();
+        await tokens.save(access, rotated ?? refresh);
+        return access;
+      } on DioException {
+        // A failed refresh must not wipe valid credentials on a transient outage.
+        return null;
+      } finally {
+        client.close();
+      }
+    }();
+    refreshInFlight = future;
+    try { return await future; } finally { refreshInFlight = null; }
+  }
 
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final path = options.uri.path;
-
-        final isPublicAuth =
-            path == '${ApiPaths.auth}/login' ||
-            path == '${ApiPaths.auth}/register';
-
-        options.headers.remove('Authorization');
-        if (!isPublicAuth) {
-          final token = await tokens.access;
-
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      final path = options.uri.path;
+      final isPublic = path == '${ApiPaths.auth}/login' ||
+          path == '${ApiPaths.auth}/register' ||
+          path == '${ApiPaths.auth}/refresh';
+      if (!isPublic) {
+        final access = await tokens.access;
+        if (access != null && access.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $access';
         }
-
-        handler.next(options);
-      },
-
-    ),
-  );
-
+      }
+      handler.next(options);
+    },
+    onError: (error, handler) async {
+      final request = error.requestOptions;
+      final path = request.uri.path;
+      if (error.response?.statusCode != 401 ||
+          request.extra['authRetried'] == true ||
+          path.startsWith(ApiPaths.auth)) {
+        return handler.next(error);
+      }
+      try {
+        // Another request may already have refreshed the access token.
+        final current = await tokens.access;
+        final oldHeader = request.headers['Authorization']?.toString();
+        final access = current != null && current.isNotEmpty &&
+                oldHeader != 'Bearer $current'
+            ? current : await refreshAccessToken();
+        if (access == null) return handler.next(error);
+        request.extra['authRetried'] = true;
+        request.headers['Authorization'] = 'Bearer $access';
+        final result = await dio.fetch<dynamic>(request);
+        return handler.resolve(result);
+      } catch (_) {
+        return handler.next(error);
+      }
+    },
+  ));
   return dio;
 });
 
