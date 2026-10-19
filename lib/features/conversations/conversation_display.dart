@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/network/api.dart';
 import '../../core/widgets/user_avatar.dart' show validAvatarUrl;
 
 /// Resolves the title/avatar shown for a conversation.
@@ -125,13 +127,13 @@ List<Color> avatarGradientFor(String key) =>
 
 /// Circular avatar: network photo when available, otherwise a gradient
 /// circle with white initials. Saved Messages gets the blue bookmark icon.
-class ConversationAvatar extends StatelessWidget {
+class ConversationAvatar extends ConsumerWidget {
   final ConversationDisplay display;
   final double size;
   const ConversationAvatar({super.key, required this.display, this.size = 52});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Share links and Google redirect pages are not image resources.
     final url = validAvatarUrl(display.avatarUrl);
 
@@ -178,10 +180,24 @@ class ConversationAvatar extends StatelessWidget {
       child: ClipOval(
         child: url == null
             ? fallback()
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => fallback(),
+            : FutureBuilder<String?>(
+                future: ref.read(tokenStoreProvider).access,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return fallback();
+                  }
+                  final token = snapshot.data;
+                  return Image.network(
+                    url,
+                    headers: token == null || token.isEmpty
+                        ? null : {'Authorization': 'Bearer $token'},
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, error, __) {
+                      debugPrint('Conversation avatar failed: $error');
+                      return fallback();
+                    },
+                  );
+                },
               ),
       ),
     );
