@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/network/api.dart';
 import '../uploads/attachment.dart';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 typedef MessageJson = Map<String, dynamic>;
 final messageRepositoryProvider = Provider(
   (ref) => MessageRepository(ref.read(dioProvider)),
@@ -95,59 +96,44 @@ class MessageRepository {
   }
 
   Future<MessageJson> upload(
-  Object messageId,
-  PlatformFile file, {
-  ProgressCallback? progress,
-}) async {
-  final mime = mimeTypeForFile(file.name);
+    Object messageId,
+    PlatformFile file, {
+    ProgressCallback? progress,
+  }) async {
+    final mime = mimeTypeForFile(file.name);
 
-  if (mime == null) {
-    throw StateError('Unsupported file type');
-  }
+    if (mime == null) {
+      throw StateError('Unsupported file type');
+    }
 
-  late final MultipartFile multipartFile;
-
-  if (kIsWeb) {
     final bytes = file.bytes;
+    final multipartFile = bytes != null && bytes.isNotEmpty
+        ? MultipartFile.fromBytes(
+            bytes,
+            filename: file.name,
+            contentType: DioMediaType.parse(mime),
+          )
+        : !kIsWeb && file.path != null
+        ? await MultipartFile.fromFile(
+            file.path!,
+            filename: file.name,
+            contentType: DioMediaType.parse(mime),
+          )
+        : throw StateError('Unable to read selected file');
 
-    if (bytes == null || bytes.isEmpty) {
-      throw StateError('Unable to read selected file');
-    }
+    final data = FormData.fromMap({
+      'messageId': messageId.toString(),
+      'file': multipartFile,
+    });
 
-    multipartFile = MultipartFile.fromBytes(
-      bytes,
-      filename: file.name,
-      contentType: DioMediaType.parse(mime),
+    final response = await dio.post(
+      '/api/v1/uploads',
+      data: data,
+      onSendProgress: progress,
     );
-  } else {
-    final path = file.path;
 
-    if (path == null || path.isEmpty) {
-      throw StateError('File path unavailable');
-    }
-
-    multipartFile = await MultipartFile.fromFile(
-      path,
-      filename: file.name,
-      contentType: DioMediaType.parse(mime),
-    );
+    return MessageJson.from(unwrap(response.data) as Map);
   }
-
-  final formData = FormData.fromMap({
-    'messageId': messageId.toString(),
-    'file': multipartFile,
-  });
-
-  final response = await dio.post(
-    '/api/v1/uploads',
-    data: formData,
-    onSendProgress: progress,
-  );
-
-  return MessageJson.from(
-    unwrap(response.data) as Map,
-  );
-}
 
   /// Step 1 of the documented workflow: create the IMAGE/FILE message.
   /// `content` must be non-blank, so the caption (or file name) is used.
