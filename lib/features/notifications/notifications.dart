@@ -1,4 +1,5 @@
 import '../../core/preferences/app_preferences.dart';
+import '../../core/notifications/notification_history_cache.dart';
 import '../../core/widgets/user_avatar.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
@@ -18,8 +19,15 @@ class NotificationsRepository {
   Future<List<Map<String, dynamic>>> page(int page) async {
     final response = await dio.get('/api/v1/notifications', queryParameters: {'page': page, 'size': 20});
     final data = unwrap(response.data);
-    final raw = data is List ? data : data is Map ? (data['notifications'] ?? data['content'] ?? data['items'] ?? <dynamic>[]) : <dynamic>[];
-    return (raw as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    dynamic raw = data;
+    // API may wrap pagination in data.notifications, data.page or data.content.
+    for (var depth = 0; depth < 4 && raw is Map; depth++) {
+      final map = raw;
+      raw = map['notifications'] ?? map['content'] ?? map['items'] ??
+          map['results'] ?? map['page'] ?? <dynamic>[];
+    }
+    if (raw is! List) return [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
   Future<void> markRead(Object id) async {
     await dio.post('/api/v1/notifications/$id/read');
@@ -104,7 +112,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     });
     Future.microtask(load);
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && !busy) load(reset: true);
+      if (mounted && !busy && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) load(reset: true);
     });
   }
 
@@ -122,7 +130,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       error = null;
     });
     try {
-      final next = await _repo.page(reset ? 0 : page);
+      List<Map<String, dynamic>> next;
+      try {
+        next = await _repo.page(reset ? 0 : page);
+      } catch (_) {
+        final cached = await NotificationHistoryCache.read();
+        if (cached.isEmpty) rethrow;
+        next = <Map<String, dynamic>>[];
+      }
+      final local = reset || page == 0 ? await NotificationHistoryCache.read() : <Map<String, dynamic>>[];
       if (!mounted) return;
       setState(() {
         if (reset) {
@@ -130,7 +146,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           page = 0;
         }
         final ids = items.map((e) => '${e['id']}').toSet();
-        items.addAll(next.where((e) => ids.add('${e['id']}')));
+        items.addAll([...next, ...local].where((e) => ids.add('${e['id']}')));
+        items.sort((a, b) => (b['createdAt'] ?? '').toString().compareTo((a['createdAt'] ?? '').toString()));
         page++;
         hasMore = next.length == 20;
       });
@@ -153,7 +170,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (n['id'] == null || _isRead(n)) return;
     setState(() => n['isRead'] = true);
     try {
-      await _repo.markRead(n['id']);
+      if (n['localOnly'] == true) {
+        await NotificationHistoryCache.markRead(n['id']);
+      } else {
+        await _repo.markRead(n['id']);
+      }
     } catch (e) {
       if (mounted) setState(() => n['isRead'] = false);
       _toast(e);
@@ -169,7 +190,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     });
     try {
-      await _repo.markAllRead();
+      await Future.wait([_repo.markAllRead(), NotificationHistoryCache.markAllRead()]);
     } catch (e) {
       if (mounted) setState(() {
         for (final n in unread) {
@@ -184,7 +205,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Future<void> _delete(Map<String, dynamic> n) async {
     setState(() => items.remove(n));
     try {
-      await _repo.delete(n['id']);
+      if (n['localOnly'] == true) {
+        await NotificationHistoryCache.delete(n['id']);
+      } else {
+        await _repo.delete(n['id']);
+      }
     } catch (e) {
       _toast(e);
       load(reset: true);
@@ -226,14 +251,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               if (v == 'read') _markAllRead();
               if (v == 'refresh') load(reset: true);
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'read',
                 child: ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.done_all),
-                  title: Text('Mark all as read'),
+                  title: Text(t('Mark all as read')),
                 ),
               ),
               PopupMenuItem(
@@ -242,7 +267,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.refresh),
-                  title: Text('Refresh'),
+                  title: Text(t('Refresh')),
                 ),
               ),
             ],
@@ -282,7 +307,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: _tgBlue),
                   onPressed: () => load(reset: true),
-                  child: const Text('Retry'),
+                  child: Text(t('Retry')),
                 ),
               ],
             ),
@@ -372,7 +397,7 @@ class _NotificationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final read = _isRead(n);
     final (icon, top, bottom) = _styleFor(n);
-    final title = '${n['title'] ?? n['type'] ?? 'Notification'}';
+    final title = '${n['title'] ?? n['senderName'] ?? n['senderUsername'] ?? n['type'] ?? 'Notification'}';
     final body = '${n['body'] ?? n['message'] ?? ''}';
     final time = _timeLabel(n);
 
@@ -382,8 +407,8 @@ class _NotificationRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            if ((n['senderAvatarUrl'] ?? n['senderAvatar'] ?? n['avatarUrl'] ?? n['avatar_url'])?.toString().isNotEmpty == true)
-              UserAvatar(label: title, url: (n['senderAvatarUrl'] ?? n['senderAvatar'] ?? n['avatarUrl'] ?? n['avatar_url']).toString(), radius: 26)
+            if ((n['senderAvatarUrl'] ?? n['senderAvatar'] ?? (n['sender'] is Map ? n['sender']['avatarUrl'] : null) ?? n['avatarUrl'] ?? n['avatar_url'])?.toString().isNotEmpty == true)
+              UserAvatar(label: title, url: (n['senderAvatarUrl'] ?? n['senderAvatar'] ?? (n['sender'] is Map ? n['sender']['avatarUrl'] : null) ?? n['avatarUrl'] ?? n['avatar_url']).toString(), radius: 26)
             else Container(
               width: 52,
               height: 52,

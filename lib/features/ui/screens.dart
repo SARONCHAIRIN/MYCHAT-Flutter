@@ -22,7 +22,7 @@ import 'group_screen.dart';
 class Tg {
   static const blue = Color(0xFF2481CC); // app bar / header
   static const accent = Color(0xFF3390EC); // buttons, links, badges
-  static const text = Color(0xFF222222);
+  static const text = Color(0xFF222222); // Legacy light-only; use theme onSurface.
   static const secondary = Color(0xFF8A8A8A);
   static const divider = Color(0xFFE7E8EC);
   static const surface = Color(0xFFF1F1F4);
@@ -96,7 +96,7 @@ Widget _searchBox({required TextEditingController controller, required String hi
 
 Widget _sectionHeader(String t) => Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-      child: Text(t, style: const TextStyle(color: Tg.accent, fontWeight: FontWeight.w600, fontSize: 14)),
+      child: Text(t, style: TextStyle(color: Tg.accent, fontWeight: FontWeight.w600, fontSize: 14)),
     );
 
 Widget _insetDivider() => const Padding(padding: EdgeInsets.only(left: 78), child: Divider(height: 1, thickness: .6, color: Tg.divider));
@@ -218,12 +218,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ],
                       Text(register ? 'Create account' : 'MYCHAT Login',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Tg.text)),
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                       const SizedBox(height: 8),
                       Text(
                         register ? 'Please enter your name, username, email and a password.' : 'Please sign in to continue your conversations.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 14, color: Tg.secondary, height: 1.3),
+                        style: TextStyle(fontSize: 14, color: Tg.secondary, height: 1.3),
                       ),
                       const SizedBox(height: 20),
                       if (register) ...[
@@ -269,14 +269,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         onPressed: busy ? null : _submit,
                         child: busy
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Text(register ? 'Register' : 'Login', style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
+                            : Text(register ? 'Register' : 'Login', style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
                       ),
                       const SizedBox(height: 10),
                       Center(
                         child: TextButton(
                           onPressed: busy ? null : () => setState(() => register = !register),
                           child: Text(register ? 'Already have an account? Login' : 'Create account',
-                              style: const TextStyle(color: Tg.accent, fontSize: 15)),
+                              style: TextStyle(color: Tg.accent, fontSize: 15)),
                         ),
                       ),
                     ],
@@ -319,7 +319,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _showNewMenu() {
   showModalBottomSheet(
     context: context,
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -356,12 +356,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: const Text('Log out?'),
         content: const Text('You will need to sign in again to read your messages.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Log out', style: TextStyle(color: Tg.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t('Cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t('Log out'), style: TextStyle(color: Tg.danger))),
         ],
       ),
     );
@@ -381,7 +381,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _drawerItem(IconData icon, String label, VoidCallback onTap, {Color? color, bool enabled = true}) => ListTile(
         enabled: enabled,
         leading: Icon(icon, color: color ?? Tg.secondary),
-        title: Text(label, style: TextStyle(color: color ?? Tg.text, fontWeight: FontWeight.w500)),
+        title: Text(label, style: TextStyle(color: color ?? Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w500)),
         onTap: onTap,
       );
 
@@ -405,7 +405,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 controller: searchCtl,
                 autofocus: true,
                 cursorColor: Colors.white,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.white, fontSize: 18),
                 decoration: const InputDecoration(
                   hintText: 'Search',
                   hintStyle: TextStyle(color: Colors.white70),
@@ -432,7 +432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       drawer: Drawer(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         child: SafeArea(
           top: false,
           child: Column(
@@ -450,17 +450,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       UserAvatar(radius: 34, label: name, url: (me?['avatarUrl'] ?? me?['avatar_url'])?.toString()),
                       const SizedBox(height: 14),
-                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18)),
-                      if (username.isNotEmpty) Text('@$username', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18)),
+                      if (username.isNotEmpty) Text('@$username', style: TextStyle(color: Colors.white70, fontSize: 14)),
                     ],
                   ),
                 );
               }),
               const SizedBox(height: 6),
-              _drawerItem(Icons.chat_bubble_outline, 'All chats', () { Navigator.pop(context); setState(() => selected = 0); }),
-              _drawerItem(Icons.person_outline, 'Contacts', () { Navigator.pop(context); setState(() => selected = 1); }),
-              _drawerItem(Icons.notifications_none, 'Notifications', () { Navigator.pop(context); setState(() => selected = 2); }),
-              _drawerItem(Icons.account_circle_outlined, 'My profile', () { Navigator.pop(context); setState(() => selected = 3); }),
+              _drawerItem(Icons.chat_bubble_outline, t('All chats'), () { Navigator.pop(context); setState(() => selected = 0); }),
+              _drawerItem(Icons.person_outline, t('Contacts'), () { Navigator.pop(context); setState(() => selected = 1); }),
+              _drawerItem(Icons.notifications_none, t('Notifications'), () { Navigator.pop(context); setState(() => selected = 2); }),
+              _drawerItem(Icons.account_circle_outlined, t('My profile'), () { Navigator.pop(context); setState(() => selected = 3); }),
               const Divider(height: 16),
               _drawerItem(Icons.palette_outlined, tr('Appearance & language', lang), () {
                 Navigator.pop(context);
@@ -470,13 +470,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }),
-              _drawerItem(Icons.block_outlined, 'Blocked users', () {
+              _drawerItem(Icons.block_outlined, t('Blocked users'), () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockedUsersScreen()));
               }),
               const Spacer(),
               const Divider(height: 1),
-              _drawerItem(Icons.logout_rounded, 'Log out', _confirmLogout, color: Tg.danger, enabled: !_loggingOut),
+              _drawerItem(Icons.logout_rounded, t('Log out'), _confirmLogout, color: Tg.danger, enabled: !_loggingOut),
             ],
           ),
         ),
@@ -502,7 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       )
     : null,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Tg.divider, width: .6))),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: Theme.of(context).dividerColor, width: .6))),
         child: NavigationBar(
           selectedIndex: selected,
           height: 62,
@@ -618,8 +618,8 @@ await ref.read(userRepositoryProvider).uploadAvatar(
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Tg.surface,
-        appBar: widget.showAppBar ? AppBar(title: const Text('My profile')) : null,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: widget.showAppBar ? AppBar(title: Text(t('My profile'))) : null,
         body: FutureBuilder<Json>(
           future: future,
           builder: (context, snap) {
@@ -637,7 +637,7 @@ await ref.read(userRepositoryProvider).uploadAvatar(
               children: [
                 // Header
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     children: [
@@ -660,20 +660,20 @@ await ref.read(userRepositoryProvider).uploadAvatar(
                         ],
                       ),
                       const SizedBox(height: 14),
-                      Text(display, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Tg.text)),
+                      Text(display, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                       const SizedBox(height: 2),
-                      const Text('online', style: TextStyle(color: Tg.accent, fontSize: 14)),
+                      Text(t('online'), style: TextStyle(color: Tg.accent, fontSize: 14)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _sectionHeader('Account'),
                     ListTile(
-                      title: Text('@${user['username'] ?? ''}', style: const TextStyle(fontSize: 16)),
-                      subtitle: const Text('Username'),
+                      title: Text('@${user['username'] ?? ''}', style: TextStyle(fontSize: 16)),
+                      subtitle: Text(t('Username')),
                     ),
                     const Divider(height: 1, indent: 16),
                     Padding(
@@ -692,7 +692,7 @@ await ref.read(userRepositoryProvider).uploadAvatar(
                     onPressed: _saving ? null : _save,
                     child: _saving
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('SAVE', style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
+                        : Text(t('SAVE'), style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: .6)),
                   ),
                 ),
               ],
@@ -789,9 +789,9 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text((u['name'] ?? u['username'] ?? 'User').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text)),
+                            Text((u['name'] ?? u['username'] ?? 'User').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
                             const SizedBox(height: 2),
-                            Text('@${u['username'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Tg.secondary)),
+                            Text('@${u['username'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, color: Tg.secondary)),
                           ]),
                         ),
                         IconButton(
@@ -806,14 +806,14 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 ],
                 if (loading) const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())),
                 if (!loading && users.isEmpty && error == null)
-                  const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('No contacts found', style: TextStyle(color: Tg.secondary)))),
+                  Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(t('No contacts found'), style: TextStyle(color: Tg.secondary)))),
                 if (!loading && users.isNotEmpty)
                   TextButton(
                     onPressed: () {
                       page++;
                       load(next: true);
                     },
-                    child: const Text('Load more', style: TextStyle(color: Tg.accent)),
+                    child: Text(t('Load more'), style: TextStyle(color: Tg.accent)),
                   ),
               ],
             ),
@@ -828,7 +828,7 @@ class PublicProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-        backgroundColor: Tg.surface,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(title: const Text('Profile')),
         body: FutureBuilder<Json>(
           future: ref.read(userRepositoryProvider).byId(userId ?? ''),
@@ -841,19 +841,19 @@ class PublicProfileScreen extends ConsumerWidget {
             final bio = (u['bio'] ?? '').toString();
             return ListView(children: [
               Container(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(children: [
                   UserAvatar(radius: 52, label: display, url: (u['avatarUrl'] ?? u['avatar_url'])?.toString()),
                   const SizedBox(height: 14),
-                  Text(display, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Tg.text)),
+                  Text(display, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                   const SizedBox(height: 2),
-                  Text('@${u['username'] ?? ''}', style: const TextStyle(color: Tg.secondary)),
+                  Text('@${u['username'] ?? ''}', style: TextStyle(color: Tg.secondary)),
                 ]),
               ),
               const SizedBox(height: 8),
               Container(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 child: Column(children: [
                   ListTile(
                     leading: const Icon(Icons.chat_bubble_outline, color: Tg.secondary),
@@ -873,7 +873,7 @@ class PublicProfileScreen extends ConsumerWidget {
                     ListTile(
                       leading: const Icon(Icons.info_outline, color: Tg.secondary),
                       title: Text(bio),
-                      subtitle: const Text('Bio'),
+                      subtitle: Text(t('Bio')),
                     ),
                   ],
                 ]),
@@ -917,7 +917,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   Widget _tabs(List<Json> all) {
     final unread = all.where((c) => _unread(c) > 0).length;
     return Container(
-      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Tg.divider, width: .6))),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor, width: .6))),
       child: SingleChildScrollView(
         child: Row(children: [
           for (final label in const ['All', 'Unread', 'Groups', 'Direct'])
@@ -929,13 +929,13 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   border: Border(bottom: BorderSide(color: category == label ? Tg.accent : Colors.transparent, width: 2.5)),
                 ),
                 child: Row(children: [
-                  Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: category == label ? Tg.accent : Tg.secondary)),
+                  Text(t(label), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: category == label ? Tg.accent : Tg.secondary)),
                   if (label == 'Unread' && unread > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(color: category == label ? Tg.accent : Tg.secondary, borderRadius: BorderRadius.circular(10)),
-                      child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                      child: Text('$unread', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ]),
@@ -962,20 +962,20 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   if (display.isGroup) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.group, size: 16, color: Tg.secondary)),
-                  Expanded(child: Text(display.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text))),
+                  Expanded(child: Text(display.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface))),
                   const SizedBox(width: 6),
                   Text(time, style: TextStyle(fontSize: 12, color: unread > 0 ? Tg.accent : Tg.secondary)),
                 ]),
                 const SizedBox(height: 3),
                 Row(children: [
-                  Expanded(child: Text(_lastPreview(c), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, color: Tg.secondary))),
+                  Expanded(child: Text(_lastPreview(c), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14.5, color: Tg.secondary))),
                   if (unread > 0)
                     Container(
                       margin: const EdgeInsets.only(left: 8),
                       constraints: const BoxConstraints(minWidth: 22),
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(color: Tg.accent, borderRadius: BorderRadius.circular(12)),
-                      child: Text(unread > 999 ? '999+' : '$unread', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      child: Text(unread > 999 ? '999+' : '$unread', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
                 ]),
               ]),
@@ -1027,12 +1027,21 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   } catch (_) {}
                 },
                 child: !snap.hasData && !snap.hasError
-                    ? ListView(children: const [Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))])
+                    ? ListView(children:  [Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))])
                     : visible.isEmpty
-                        ? ListView(children: const [
+                        ? ListView(children:  [
                             Padding(
-                              padding: EdgeInsets.all(60),
-                              child: Center(child: Text('No conversations found', style: TextStyle(color: Tg.secondary, fontSize: 15))),
+                              padding:const EdgeInsets.all(60),
+                              child: 
+                              Center(
+  child: Text(
+    t('No conversations found'),
+    style: const TextStyle(
+      color: Tg.secondary,
+      fontSize: 15,
+    ),
+  ),
+)
                             ),
                           ])
                         : ListView.builder(
@@ -1060,7 +1069,7 @@ class ConversationDetailsScreen extends ConsumerWidget {
     final me = ref.watch(authProvider).valueOrNull;
     final ownId = me?['id'] ?? me?['userId'];
     return Scaffold(
-      backgroundColor: Tg.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Info')),
       body: FutureBuilder<Json>(
         future: ref.read(conversationRepositoryProvider).byId(id ?? ''),
@@ -1076,30 +1085,30 @@ class ConversationDetailsScreen extends ConsumerWidget {
               final list = members.data ?? <Json>[];
               return ListView(children: [
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(children: [
                     UserAvatar(radius: 52, label: display.name, url: display.avatarUrl, group: display.isGroup),
                     const SizedBox(height: 14),
-                    Text(display.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Tg.text)),
+                    Text(display.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(height: 2),
-                    Text(members.hasData ? '${list.length} members' : '', style: const TextStyle(color: Tg.secondary)),
+                    Text(members.hasData ? '${list.length} members' : '', style: TextStyle(color: Tg.secondary)),
                   ]),
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   child: ListTile(
                     leading: const Icon(Icons.chat_bubble_outline, color: Tg.accent),
-                    title: const Text('Open messages', style: TextStyle(color: Tg.accent, fontWeight: FontWeight.w500)),
+                    title: Text(t('Open messages'), style: TextStyle(color: Tg.accent, fontWeight: FontWeight.w500)),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(conversationId: id ?? ''))),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    _sectionHeader('Members'),
+                    _sectionHeader(t('Members')),
                     if (members.hasError)
                       Padding(padding: const EdgeInsets.all(16), child: Text(apiError(members.error!)))
                     else if (!members.hasData)
@@ -1108,7 +1117,7 @@ class ConversationDetailsScreen extends ConsumerWidget {
                       for (final m in list) ...[
                         ListTile(
                           leading: TelegramAvatar(radius: 22, label: (m['name'] ?? m['username'] ?? 'M').toString(), url: (m['avatarUrl'] ?? m['avatar_url'])?.toString()),
-                          title: Text((m['name'] ?? m['username'] ?? m['userId'] ?? 'Member').toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                          title: Text((m['name'] ?? m['username'] ?? m['userId'] ?? 'Member').toString(), style: TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: m['username'] != null ? Text('@${m['username']}') : null,
                         ),
                       ],

@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
+import '../network/api.dart';
+import '../../features/uploads/attachment.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -52,13 +56,37 @@ class ForegroundNotificationService {
     final notification = message.notification;
     final title = notification?.title ?? 'New message';
     final body = notification?.body ?? 'You received a new message';
-    const details = NotificationDetails(
+    ByteArrayAndroidBitmap? senderAvatar;
+    final rawAvatar = (message.data['senderAvatarUrl'] ??
+        message.data['senderAvatar'] ?? message.data['avatarUrl'])?.toString();
+    if (rawAvatar != null && rawAvatar.isNotEmpty) {
+      final url = resolveAttachmentUrl(rawAvatar, apiBaseUrl);
+      if (url != null && Uri.tryParse(url)?.scheme == 'https') {
+        try {
+          final token = await TokenStore().access;
+          final response = await Dio(BaseOptions(
+            receiveTimeout: const Duration(seconds: 8),
+            responseType: ResponseType.bytes,
+          )).get<List<int>>(url,
+            options: Options(headers: {
+              if (token != null) 'Authorization': 'Bearer $token',
+            }));
+          final bytes = response.data;
+          if (bytes != null && bytes.isNotEmpty && bytes.length <= 2 * 1024 * 1024) {
+            senderAvatar = ByteArrayAndroidBitmap(Uint8List.fromList(bytes));
+          }
+        } catch (error) {
+          debugPrint('Notification sender avatar unavailable: $error');
+        }
+      }
+    }
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'mychat_messages',
-        'Messages',
+        'mychat_messages', 'Messages',
         channelDescription: 'Incoming MYCHAT messages',
         importance: Importance.high,
         priority: Priority.high,
+        largeIcon: senderAvatar,
       ),
     );
     await _plugin.show(

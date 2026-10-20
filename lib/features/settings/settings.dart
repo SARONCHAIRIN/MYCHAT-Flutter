@@ -1,3 +1,4 @@
+import '../../core/preferences/app_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -306,7 +307,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.background,
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(t('Settings'), style: const TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0.5,
@@ -328,7 +329,7 @@ class SettingsScreen extends ConsumerWidget {
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: _tgBlue),
                   onPressed: () => ref.invalidate(settingsProvider),
-                  child: const Text('Retry'),
+                  child: Text(t('Retry')),
                 ),
               ],
             ),
@@ -338,27 +339,27 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 32),
           children: [
             _Section(
-              header: 'Appearance',
+              header: t('Appearance'),
               children: [
                 _TgTile(
                   icon: Icons.palette,
                   color: const Color(0xFFF2994A),
-                  title: 'Color theme',
-                  value: data['theme'] == null ? 'System' : _pretty(data['theme']),
+                  title: t('Color theme'),
+                  value: t(ref.watch(appPreferencesProvider).themeMode.name == 'system' ? 'System' : ref.watch(appPreferencesProvider).themeMode.name == 'dark' ? 'Dark' : 'Light'),
                   chevron: true,
-                  onTap: () => _pickTheme(context, ref, data['theme']?.toString()),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _AppearanceSettingsPage())),
                 ),
               ],
             ),
             _Section(
-              header: 'Notifications and sounds',
+              header: t('Notifications and sounds'),
               children: [
                 for (final e in _toggleFields.entries)
                   if (data[e.key] is bool)
                     _TgTile(
                       icon: e.value.$2,
                       color: e.value.$3,
-                      title: e.value.$1,
+                      title: t(e.value.$1),
                       onTap: () => _toggle(context, ref, e.key, !(data[e.key] as bool)),
                       trailing: Switch.adaptive(
                         value: data[e.key] as bool,
@@ -369,21 +370,20 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             _Section(
-              header: 'Privacy',
-              footer:
-                  'These options are view-only for now. Editing will be available soon.',
+              header: t('Privacy'),
+              footer: t('These options are view-only for now. Editing will be available soon.'),
               children: [
                 for (final e in _privacyFields.entries)
                   _TgTile(
                     icon: e.value.$2,
                     color: e.value.$3,
-                    title: e.value.$1,
+                    title: t(e.value.$1),
                     value: _pretty(data[e.key]),
                   ),
                 _TgTile(
                   icon: Icons.block,
                   color: const Color(0xFFE5534B),
-                  title: 'Blocked users',
+                  title: t('Blocked users'),
                   chevron: true,
                   onTap: () => Navigator.push(
                     context,
@@ -566,6 +566,33 @@ class BlockedUsersScreen extends ConsumerWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+class _AppearanceSettingsPage extends ConsumerWidget {
+  const _AppearanceSettingsPage();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preferences = ref.watch(appPreferencesProvider);
+    return Scaffold(
+      appBar: AppBar(title: Text(t('Appearance & language'))),
+      body: ListView(children: [
+        ListTile(title: Text(t('Theme'), style: const TextStyle(fontWeight: FontWeight.bold))),
+        for (final mode in ThemeMode.values)
+          RadioListTile<ThemeMode>(
+            title: Text(t(mode == ThemeMode.dark ? 'Dark' : mode == ThemeMode.light ? 'Light' : 'System')),
+            value: mode, groupValue: preferences.themeMode,
+            onChanged: (value) { if (value != null) ref.read(appPreferencesProvider.notifier).setTheme(value); },
+          ),
+        const Divider(),
+        ListTile(title: Text(t('Language'), style: const TextStyle(fontWeight: FontWeight.bold))),
+        for (final code in ['en', 'km'])
+          RadioListTile<String>(
+            title: Text(t(code == 'km' ? 'Khmer' : 'English')),
+            value: code, groupValue: preferences.languageCode,
+            onChanged: (value) { if (value != null) ref.read(appPreferencesProvider.notifier).setLanguage(value); },
+          ),
+      ]),
     );
   }
 }
