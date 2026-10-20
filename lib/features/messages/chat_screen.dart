@@ -15,6 +15,7 @@ import '../conversations/conversation_display.dart';
 import '../reactions/reaction_summary.dart';
 import '../uploads/attachment.dart';
 import 'realtime_service.dart';
+import 'package:flutter/foundation.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final Object conversationId;
@@ -41,7 +42,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final Set<String> _mediaLookupDone = {};
   // Temporary local previews while uploads finish. Persisted images come from
   // the attachment URLs in the message history API.
-  final Map<String, String> _localFiles = {};
+  final Map<String, PlatformFile> _localFiles = {};
   final Set<String> _pinnedIds = {};
   double? _uploadProgress;
   String? _token;
@@ -535,11 +536,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   Future<void> pickAndSendAttachment() async {
     if (sending) return;
-    final selection = await FilePicker.platform.pickFiles(withData: false);
+    final selection = await FilePicker.platform.pickFiles(withData: kIsWeb);
     if (selection == null || selection.files.isEmpty) return;
     final file = selection.files.first;
-    final path = file.path;
-    if (path == null || !mounted) return;
+    if (!mounted) return;
+
+if (kIsWeb && file.bytes == null) {
+  throw StateError('Unable to read selected file');
+}
+
+if (!kIsWeb && file.path == null) {
+  throw StateError('Unable to access selected file');
+}
     final problem = validateUpload(file.name, file.size);
     if (problem != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
