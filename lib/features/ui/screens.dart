@@ -554,7 +554,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _changePhoto(Json user) async {
+  final filePath = selected.path; {
     if (_saving) return;
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -571,10 +571,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (selected.size > 5 * 1024 * 1024) {
         throw StateError('Profile photos must be 5 MB or smaller.');
       }
-      final filePath = selected.path;
-      if (filePath == null || filePath.isEmpty) {
-        throw StateError('Unable to access the selected photo path.');
-      }
+      final bytes = selected.bytes;
+
+if (bytes == null || bytes.isEmpty) {
+  throw StateError('Unable to read the selected image.');
+}
+
+setState(() => _saving = true);
+
+await ref.read(userRepositoryProvider).uploadAvatar(
+  bytes: bytes,
+  fileName: selected.name,
+);
       setState(() => _saving = true);
       final bytes = selected.bytes;
 
