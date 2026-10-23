@@ -157,6 +157,38 @@ class MessageRepository {
     return MessageJson.from(unwrap(res.data) as Map);
   }
 
+
+  /// Records are uploaded directly to the dedicated voice-message endpoint.
+  /// Backend contract: multipart fields `conversationId`, `durationSeconds`,
+  /// and `file`; authentication is added by the shared Dio interceptor.
+  Future<MessageJson> sendVoiceMessage(
+    Object conversationId,
+    String filePath, {
+    required int durationSeconds,
+    ProgressCallback? progress,
+  }) async {
+    final file = await MultipartFile.fromFile(
+      filePath,
+      filename: filePath.split('/').last,
+      contentType: DioMediaType.parse('audio/mp4'),
+    );
+    final form = FormData.fromMap({
+      'conversationId': conversationId.toString(),
+      'durationSeconds': durationSeconds.toString(),
+      'audio': file,
+    });
+    final response = await dio.post(
+      '/api/v1/voice-messages',
+      data: form,
+      onSendProgress: progress,
+    );
+    final payload = unwrap(response.data);
+    if (payload is! Map) {
+      throw StateError('Voice API returned an unexpected response.');
+    }
+    return MessageJson.from(payload);
+  }
+
   Future<void> pin(Object conversationId, Object messageId) async {
     await dio.post('${base(conversationId)}/pins/$messageId');
   }

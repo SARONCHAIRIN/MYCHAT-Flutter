@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +21,7 @@ import '../uploads/attachment.dart';
 
 import 'message_repository.dart';
 import 'realtime_service.dart';
+import 'voice_message_bubble.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final Object conversationId;
@@ -36,6 +39,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   List<MessageJson> messages = [];
   String? cursor, error;
   bool loading = false, sending = false, hasMore = true;
+  final AudioRecorder _voiceRecorder = AudioRecorder();
+  bool _isRecordingVoice = false;
+  int _recordElapsedSeconds = 0;
+  Stopwatch? _recordStopwatch;
+  Timer? _recordTimer;
   Object? replyTo;
   final Set<String> receiptSent = {};
   final Map<String, List<MessageJson>> _reactionCache = {};
@@ -178,6 +186,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
+    _recordTimer?.cancel();
+    _voiceRecorder.dispose();
     _realtimeSub?.cancel();
     _realtime?.dispose();
     input.dispose();
@@ -194,6 +204,119 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     } else {
       _refreshTimer?.cancel();
       _refreshTimer = null;
+    }
+  }
+
+
+  String _formatVoiceDuration(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final remainder = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$remainder';
+  }
+
+  Future<void> _toggleVoiceRecording() async {
+    if (sending) return;
+
+    if (_isRecordingVoice) {
+      String? path;
+      final seconds = _recordStopwatch?.elapsed.inSeconds ?? _recordElapsedSeconds;
+      try {
+        path = await _voiceRecorder.stop();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not stop recording: ${apiError(e)}')),
+          );
+        }
+      }
+      _recordStopwatch?.stop();
+      _recordTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _isRecordingVoice = false;
+          _recordElapsedSeconds = 0;
+        });
+      }
+      if (path == null || path.isEmpty) return;
+      if (seconds < 1) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Record at least one second of audio.')),
+          );
+        }
+        return;
+      }
+
+      setState(() => sending = true);
+      try {
+        final message = await ref
+            .read(messageRepositoryProvider)
+            .sendVoiceMessage(
+              widget.conversationId,
+              path,
+              durationSeconds: seconds,
+            );
+        if (!mounted) return;
+        setState(() => messages = mergeMessages(messages, [message]));
+        _scrollToLatest();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Voice message sent')),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Voice message failed: ${apiError(e)}')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => sending = false);
+      }
+      return;
+    }
+
+    try {
+      final allowed = await _voiceRecorder.hasPermission();
+      if (!allowed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Allow microphone access in your device settings to record voice messages.'),
+            ),
+          );
+        }
+        return;
+      }
+      final directory = await getTemporaryDirectory();
+      final path =
+          '${directory.path}/mychat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _voiceRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: path,
+      );
+      _recordStopwatch = Stopwatch()..start();
+      if (mounted) {
+        setState(() {
+          _isRecordingVoice = true;
+          _recordElapsedSeconds = 0;
+        });
+      }
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || !_isRecordingVoice) return;
+        setState(() {
+          _recordElapsedSeconds = _recordStopwatch?.elapsed.inSeconds ?? 0;
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start recording: ${apiError(e)}')),
+        );
+      }
     }
   }
 
@@ -1507,6 +1630,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _sameDay(_dateOf(next), date) &&
         _senderKey(next) == _senderKey(m);
     final attachments = _attachmentsFor(m);
+    final isVoiceMessage = (m['type'] ?? '').toString().toUpperCase() == 'AUDIO';
     var content = (m['content'] ?? '').toString();
     // A file name is used as content when no caption was typed; hide it.
     if (attachments.isNotEmpty) {
@@ -1548,6 +1672,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     );
     final text = deleted
         ? 'Message deleted'
+        : isVoiceMessage
+        ? ''
         : (content.isEmpty && attachments.isEmpty ? '📎 Attachment' : content);
     final hasText = text.isNotEmpty;
     final bubble = GestureDetector(
@@ -1590,7 +1716,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 ),
               ),
             _replyQuote(m, mine),
-            _messageAttachments(m),
+            if (isVoiceMessage)
+              VoiceMessageBubble(
+                messageId: m['id'] ?? m['messageId'] ?? '',
+                mine: mine,
+                durationSeconds: m['durationSeconds'] ??
+                    m['duration_seconds'] ??
+                    (attachments.isNotEmpty
+                        ? attachments.first['durationSeconds'] ??
+                            attachments.first['duration_seconds']
+                        : null),
+              )
+            else
+              _messageAttachments(m),
             if (hasText)
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -1763,7 +1901,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: input,
             builder: (_, value, __) {
-              final hasText = value.text.trim().isNotEmpty;
+              final hasText = value.text.trim().isNotEmpty && !_isRecordingVoice;
               return AnimatedSwitcher(
                 duration: const Duration(milliseconds: 150),
                 transitionBuilder: (c, a) =>
@@ -1795,10 +1933,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           ),
                         ),
                       )
-                    : const SizedBox(
-                        key: ValueKey('none'),
-                        width: 0,
-                        height: 46,
+                    : Material(
+                        key: const ValueKey('voice'),
+                        color: _isRecordingVoice
+                            ? const Color(0xffe53935)
+                            : _tgAccent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _toggleVoiceRecording,
+                          child: SizedBox(
+                            width: 46,
+                            height: 46,
+                            child: sending
+                                ? const Padding(
+                                    padding: EdgeInsets.all(13),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Icon(
+                                    _isRecordingVoice
+                                        ? Icons.stop_rounded
+                                        : Icons.mic_rounded,
+                                    color: Colors.white,
+                                    size: 23,
+                                  ),
+                          ),
+                        ),
                       ),
               );
             },
@@ -1930,6 +2093,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         if (replyTo != null) _replyBar(),
         if (_uploadProgress != null)
           LinearProgressIndicator(value: _uploadProgress, minHeight: 3),
+        if (_isRecordingVoice)
+          Container(
+            width: double.infinity,
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+            child: Row(
+              children: [
+                const Icon(Icons.fiber_manual_record, color: Colors.red, size: 14),
+                const SizedBox(width: 8),
+                Text('Recording ${_formatVoiceDuration(_recordElapsedSeconds)}'),
+                const Spacer(),
+                const Text('Tap stop to send', style: TextStyle(color: _tgMuted, fontSize: 12)),
+              ],
+            ),
+          ),
         _composer(),
       ],
     ),
